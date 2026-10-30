@@ -1,114 +1,171 @@
+import { App, Plugin, PluginSettingTab, Setting } from "obsidian";
 import {
-	Editor,
-	MarkdownView,
-	MarkdownFileInfo,
-	Modal,
-	Notice,
-	Plugin,
-} from 'obsidian';
-import {
-	DEFAULT_SETTINGS,
-	MyPluginSettings,
-	SampleSettingTab,
-} from './settings';
+  DEFAULT_SETTINGS,
+  DirectionFilter,
+  OpenTrainerParams,
+  SrTrainerSettings,
+  TrainerScope,
+} from "./types";
+import { SrTrainerModal } from "./modal";
 
-// Remember to rename these classes and interfaces!
-
-export default class MyPlugin extends Plugin {
-	settings!: MyPluginSettings;
-
-	async onload() {
-		await this.loadSettings();
-
-		// This creates an icon in the left ribbon.
-		this.addRibbonIcon('dice', 'Sample', (_evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
-		});
-
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status bar text');
-
-		// This adds a simple command that can be triggered anywhere
-		this.addCommand({
-			id: 'open-modal-simple',
-			name: 'Open modal (simple)',
-			callback: () => {
-				new SampleModal(this.app).open();
-			},
-		});
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: 'replace-selected',
-			name: 'Replace selected content',
-			editorCallback: (
-				editor: Editor,
-				_ctx: MarkdownView | MarkdownFileInfo,
-			) => {
-				editor.replaceSelection('Sample editor command');
-			},
-		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-modal-complex',
-			name: 'Open modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView =
-					this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
-					}
-
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
-				}
-				return false;
-			},
-		});
-
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
-
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(activeDocument, 'click', (_evt: MouseEvent) => {
-			new Notice('Click');
-		});
-
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(
-			window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000),
-		);
-	}
-
-	onunload() {}
-
-	async loadSettings() {
-		this.settings = Object.assign(
-			{},
-			DEFAULT_SETTINGS,
-			(await this.loadData()) as Partial<MyPluginSettings>,
-		);
-	}
-
-	async saveSettings() {
-		await this.saveData(this.settings);
-	}
+function migrateSettings(raw: unknown): SrTrainerSettings {
+  const source =
+    raw && typeof raw === "object" ? (raw as Partial<SrTrainerSettings>) : {};
+  return Object.assign({}, DEFAULT_SETTINGS, source);
 }
 
-class SampleModal extends Modal {
-	onOpen() {
-		const { contentEl } = this;
-		contentEl.setText('Woah!');
-	}
+class SrTrainerSettingTab extends PluginSettingTab {
+  plugin: MySrTrainerPlugin;
 
-	onClose() {
-		const { contentEl } = this;
-		contentEl.empty();
-	}
+  constructor(app: App, plugin: MySrTrainerPlugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+
+  display(): void {
+    const { containerEl } = this;
+    containerEl.empty();
+
+    new Setting(containerEl)
+      .setName("Файл английских карточек")
+      .setDesc("Путь к заметке со словами (по умолчанию: Words Cards)")
+      .addText((text) =>
+        text
+          .setValue(this.plugin.settings.wordsFilePath)
+          .onChange((val) => {
+            this.plugin.settings.wordsFilePath = val.trim() || "Words Cards";
+            this.plugin.requestSaveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Папка заметок книг")
+      .setDesc("По умолчанию: Знания/Книги")
+      .addText((text) =>
+        text
+          .setValue(this.plugin.settings.booksFolder)
+          .onChange((val) => {
+            this.plugin.settings.booksFolder = val.trim() || "Знания/Книги";
+            this.plugin.requestSaveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Папка учебных колод")
+      .setDesc("По умолчанию: Знания/Карточки")
+      .addText((text) =>
+        text
+          .setValue(this.plugin.settings.studyDecksFolder)
+          .onChange((val) => {
+            this.plugin.settings.studyDecksFolder =
+              val.trim() || "Знания/Карточки";
+            this.plugin.requestSaveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Папка ежедневника")
+      .setDesc(
+        "Для автоматической синхронизации поля карточек_пройдено (по умолчанию: Ежедневник)"
+      )
+      .addText((text) =>
+        text
+          .setValue(this.plugin.settings.diaryFolder)
+          .onChange((val) => {
+            this.plugin.settings.diaryFolder = val.trim() || "Ежедневник";
+            this.plugin.requestSaveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Лимит новых английских слов за сессию")
+      .setDesc("В режиме «По расписанию + новые» (по умолчанию: 25)")
+      .addSlider((slider) =>
+        slider
+          .setLimits(5, 100, 5)
+          .setValue(this.plugin.settings.englishNewSessionLimit)
+          .setDynamicTooltip()
+          .onChange((val) => {
+            this.plugin.settings.englishNewSessionLimit = val;
+            this.plugin.requestSaveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Лимит новых учебных карточек за сессию")
+      .setDesc("В режиме «По расписанию + новые» (по умолчанию: 30)")
+      .addSlider((slider) =>
+        slider
+          .setLimits(5, 100, 5)
+          .setValue(this.plugin.settings.studyNewSessionLimit)
+          .setDynamicTooltip()
+          .onChange((val) => {
+            this.plugin.settings.studyNewSessionLimit = val;
+            this.plugin.requestSaveSettings();
+          })
+      );
+  }
+}
+
+export default class MySrTrainerPlugin extends Plugin {
+  settings!: SrTrainerSettings;
+  private saveTimer: number | null = null;
+
+  async onload() {
+    this.settings = migrateSettings(await this.loadData());
+    this.addSettingTab(new SrTrainerSettingTab(this.app, this));
+
+    // Кнопка на левой панели (и в мобильном меню)
+    this.addRibbonIcon("layers", "Открыть тренажёр карточек SR", () => {
+      this.openTrainer({ scope: "english" });
+    });
+
+    // Протокол obsidian://my-sr?scope=english|study&mode=...&deck=...&book=...
+    this.registerObsidianProtocolHandler("my-sr", (params) => {
+      const scope: TrainerScope =
+        params.scope === "study" ? "study" : "english";
+      this.openTrainer({
+        scope,
+        mode: params.mode,
+        deckPath: params.deck,
+        bookPath: params.book,
+        directionFilter: params.dir as DirectionFilter | undefined,
+      });
+    });
+
+    this.addCommand({
+      id: "open-english-sr-trainer",
+      name: "Тренировать английские слова (Words Cards)",
+      callback: () => {
+        this.openTrainer({ scope: "english" });
+      },
+    });
+
+    this.addCommand({
+      id: "open-study-sr-trainer",
+      name: "Тренировать учебные карточки (Знания/Карточки)",
+      callback: () => {
+        this.openTrainer({ scope: "study" });
+      },
+    });
+  }
+
+  openTrainer(params?: OpenTrainerParams) {
+    new SrTrainerModal(this.app, this, params).open();
+  }
+
+  requestSaveSettings() {
+    if (this.saveTimer !== null) window.clearTimeout(this.saveTimer);
+    this.saveTimer = window.setTimeout(() => {
+      this.saveTimer = null;
+      void this.saveData(this.settings);
+    }, 300);
+  }
+
+  onunload() {
+    if (this.saveTimer !== null) {
+      window.clearTimeout(this.saveTimer);
+      this.saveTimer = null;
+    }
+  }
 }
