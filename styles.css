@@ -1,13 +1,25 @@
+/* Убираем стандартное ограничение Obsidian (max-width: 600px) и делаем окно просторным на ПК и iPad */
 .modal.my-sr-modal-container {
-  width: min(720px, 96vw);
-  max-height: 92vh;
-  padding: 14px 16px;
+  width: min(880px, 95vw) !important;
+  max-width: 880px !important;
+  max-height: 92vh !important;
+  padding: 18px 22px !important;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Скрываем стандартную плавающую кнопку закрытия Obsidian, так как она встроена в нашу верхнюю панель */
+.modal.my-sr-modal-container > .modal-close-button {
+  display: none !important;
 }
 
 .my-sr-modal {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 12px;
   box-sizing: border-box;
 }
 
@@ -15,20 +27,28 @@
   box-sizing: border-box;
 }
 
+/* 1. Верхняя панель вкладок и кнопки закрытия */
 .my-sr-scope-bar {
   display: flex;
+  align-items: center;
   gap: 8px;
-  padding-bottom: 8px;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--background-modifier-border);
+  flex-shrink: 0;
 }
 
 .my-sr-scope-tab {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
   min-height: 40px;
-  font-size: 0.88rem;
+  padding: 0 10px;
+  font-size: 0.9rem;
   font-weight: 700;
-  border-radius: 8px;
+  border-radius: 9px;
   cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .my-sr-scope-tab.is-active {
@@ -36,27 +56,43 @@
   color: var(--text-on-accent) !important;
 }
 
+.my-sr-close-btn {
+  flex: 0 0 auto;
+  width: 40px;
+  min-height: 40px;
+  padding: 0;
+  border-radius: 9px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+/* 2. Панель выборок и инструментов */
 .my-sr-toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .my-sr-selects {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  flex: 1 1 260px;
+  gap: 8px;
+  flex: 1 1 320px;
   min-width: 0;
 }
 
 .my-sr-selects select.dropdown {
-  flex: 1 1 140px;
+  flex: 1 1 150px;
   min-width: 0;
+  max-width: 100%;
   min-height: 36px;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
 }
 
 .my-sr-tools {
@@ -68,16 +104,18 @@
 
 .my-sr-chip-btn {
   min-height: 36px;
-  padding: 0 10px;
+  padding: 0 11px;
   border-radius: 8px;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .my-sr-chip-btn.is-active {
   border: 1px solid var(--interactive-accent) !important;
   color: var(--interactive-accent) !important;
+  background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-primary));
 }
 
 .my-sr-undo-btn {
@@ -85,10 +123,11 @@
   border-color: rgba(229, 161, 88, 0.45) !important;
 }
 
+/* 3. Плитки счётчиков */
 .my-sr-counter-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
+  gap: 8px;
 }
 
 .my-sr-counter-rect {
@@ -96,23 +135,28 @@
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  padding: 6px 10px;
-  border-radius: 8px;
+  padding: 7px 12px;
+  border-radius: 9px;
   background: color-mix(in srgb, var(--cnt-color) 14%, var(--background-primary));
   border: 1px solid color-mix(in srgb, var(--cnt-color) 42%, var(--background-modifier-border));
+  min-width: 0;
 }
 
 .my-sr-counter-label {
-  font-size: 0.74rem;
+  font-size: 0.76rem;
   font-weight: 600;
   color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .my-sr-counter-val {
-  font-size: 0.9rem;
+  font-size: 0.96rem;
   font-weight: 750;
   color: var(--cnt-color);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .my-sr-progress-track {
@@ -129,23 +173,27 @@
   transition: width 0.2s ease;
 }
 
+/* 4. Карточка вопроса (увеличена для ПК и iPad) */
 .my-sr-flashcard {
   position: relative;
-  min-height: 220px;
-  padding: 14px;
-  border-radius: 12px;
+  flex: 1 1 auto;
+  min-height: 330px;
+  padding: 16px 18px;
+  border-radius: 14px;
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   gap: 12px;
+  overflow-y: auto;
 }
 
 .my-sr-flashcard-top {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 9px;
+  flex-shrink: 0;
 }
 
 .my-sr-meta-row {
@@ -168,13 +216,14 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   font-weight: 600;
-  padding: 3px 9px;
+  padding: 3px 10px;
   border-radius: 999px;
   background: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .my-sr-pill-clickable {
@@ -183,14 +232,34 @@
   border-color: rgba(229, 161, 88, 0.45);
 }
 
+.my-sr-card-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.my-sr-card-tool-btn.is-active {
+  border: 1px solid var(--interactive-accent) !important;
+  color: var(--interactive-accent) !important;
+  background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-primary));
+}
+
 .my-sr-center {
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-  gap: 10px;
-  padding: 16px 8px;
+  gap: 12px;
+  padding: 22px 12px;
   border-radius: 10px;
   user-select: none;
 }
@@ -204,27 +273,29 @@
 }
 
 .my-sr-prompt-text {
-  font-size: 1.55rem;
+  font-size: 1.85rem;
   font-weight: 750;
   color: var(--text-normal);
-  line-height: 1.28;
+  line-height: 1.26;
   word-break: break-word;
+  max-width: 720px;
 }
 
 .my-sr-answer-text {
-  font-size: 1.35rem;
+  font-size: 1.55rem;
   font-weight: 700;
   color: #4aab80;
-  line-height: 1.34;
+  line-height: 1.32;
   word-break: break-word;
+  max-width: 720px;
 }
 
 .my-sr-example-text {
-  font-size: 0.88rem;
+  font-size: 0.94rem;
   color: var(--text-muted);
   font-style: italic;
-  line-height: 1.4;
-  max-width: 620px;
+  line-height: 1.42;
+  max-width: 660px;
 }
 
 .my-sr-example-flip-row {
@@ -243,9 +314,9 @@
 }
 
 .my-sr-context-chip {
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   font-weight: 600;
-  padding: 3px 9px;
+  padding: 3px 10px;
   border-radius: 7px;
   background: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
@@ -256,38 +327,39 @@
   width: 100%;
   height: 1px;
   background: var(--background-modifier-border);
-  margin: 4px 0;
+  margin: 6px 0;
 }
 
 .my-sr-type-wrap {
   width: 100%;
-  max-width: 460px;
+  max-width: 480px;
   margin-top: 4px;
 }
 
 .my-sr-type-input {
   width: 100%;
-  min-height: 40px;
-  font-size: 0.92rem;
+  min-height: 42px;
+  font-size: 0.96rem;
   text-align: center;
-  border-radius: 8px;
+  border-radius: 9px;
 }
 
 .my-sr-eval-result {
-  font-size: 0.84rem;
+  font-size: 0.88rem;
   font-weight: 650;
 }
 
 .my-sr-examples-panel {
   width: 100%;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: 9px;
   background: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 0.82rem;
+  font-size: 0.84rem;
+  flex-shrink: 0;
 }
 
 .my-sr-examples-head {
@@ -298,7 +370,7 @@
 }
 
 .my-sr-examples-title {
-  font-size: 0.75rem;
+  font-size: 0.76rem;
   font-weight: 650;
   color: var(--text-muted);
 }
@@ -329,18 +401,19 @@
 
 .my-sr-edit-box {
   padding: 10px;
-  border-radius: 8px;
+  border-radius: 9px;
   background: var(--background-primary);
   border: 1px solid var(--interactive-accent);
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .my-sr-input {
   width: 100%;
-  min-height: 34px;
-  font-size: 0.84rem;
+  min-height: 36px;
+  font-size: 0.86rem;
 }
 
 .my-sr-edit-foot {
@@ -360,29 +433,34 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   cursor: pointer;
+}
+
+/* 5. Кнопки ответа внизу */
+.my-sr-bottom-controls {
+  flex-shrink: 0;
 }
 
 .my-sr-flip-btn {
   width: 100%;
-  min-height: 50px;
-  font-size: 0.96rem;
+  min-height: 54px;
+  font-size: 1rem;
   font-weight: 700;
-  border-radius: 10px;
+  border-radius: 11px;
   cursor: pointer;
 }
 
 .my-sr-grade-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(90px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(100px, 1fr));
+  gap: 10px;
 }
 
 button.my-sr-grade-btn {
-  min-height: 52px;
-  padding: 8px;
-  border-radius: 10px;
+  min-height: 58px;
+  padding: 8px 10px;
+  border-radius: 11px;
   background: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
   border-bottom: 3px solid var(--grade-color, #599ed6);
@@ -399,7 +477,7 @@ button.my-sr-grade-btn:hover:not(:disabled) {
 }
 
 .my-sr-grade-title {
-  font-size: 0.86rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: var(--text-normal);
   display: inline-flex;
@@ -417,29 +495,30 @@ button.my-sr-grade-btn:hover:not(:disabled) {
 }
 
 .my-sr-grade-sub {
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   font-weight: 600;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
 .my-sr-done-center {
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 24px 10px;
+  gap: 12px;
+  padding: 32px 12px;
 }
 
 .my-sr-done-title {
-  font-size: 1.15rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: #4aab80;
 }
 
 .my-sr-done-sub {
-  font-size: 0.86rem;
+  font-size: 0.9rem;
   color: var(--text-muted);
 }
 
@@ -451,26 +530,190 @@ button.my-sr-grade-btn:hover:not(:disabled) {
 }
 
 .my-sr-action-btn {
-  min-height: 38px;
+  min-height: 40px;
   padding: 0 14px;
-  border-radius: 8px;
+  border-radius: 9px;
   font-weight: 650;
   cursor: pointer;
 }
 
-@media (min-width: 601px) {
+@media (min-width: 641px) {
   .my-sr-chip-btn,
   .my-sr-scope-tab,
-  .my-sr-action-btn {
-    min-width: 44px;
-    min-height: 44px;
+  .my-sr-action-btn,
+  .my-sr-close-btn {
+    min-height: 42px;
   }
 }
 
+/* Адаптация под телефон (полноэкранный режим без обрезанных счётчиков и расползающихся кнопок) */
 @media (max-width: 640px) {
+  .modal.my-sr-modal-container {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+    padding-top: max(10px, env(safe-area-inset-top, 10px)) !important;
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 12px)) !important;
+    padding-left: max(10px, env(safe-area-inset-left, 10px)) !important;
+    padding-right: max(10px, env(safe-area-inset-right, 10px)) !important;
+  }
+
+  .my-sr-modal {
+    gap: 8px;
+    height: 100%;
+  }
+
+  .my-sr-scope-bar {
+    gap: 6px;
+    padding-bottom: 6px;
+  }
+
+  .my-sr-scope-tab {
+    min-height: 36px;
+    font-size: 0.8rem;
+    padding: 0 8px;
+  }
+
+  .my-sr-close-btn {
+    width: 36px;
+    min-height: 36px;
+  }
+
+  .my-sr-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .my-sr-selects {
+    flex: 0 0 auto;
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .my-sr-selects select.dropdown {
+    width: 100%;
+    min-height: 32px;
+    font-size: 0.75rem;
+    padding: 0 8px;
+  }
+
+  .my-sr-tools {
+    width: 100%;
+    display: flex;
+    gap: 5px;
+  }
+
+  .my-sr-chip-btn {
+    flex: 1 1 auto;
+    min-height: 32px;
+    padding: 0 8px;
+    font-size: 0.74rem;
+    text-align: center;
+    justify-content: center;
+  }
+
+  /* На телефоне складываем подпись и число вертикально, чтобы «Пройдено» никогда не обрезало цифру */
+  .my-sr-counter-row {
+    gap: 6px;
+  }
+
+  .my-sr-counter-rect {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    padding: 5px 4px;
+    text-align: center;
+  }
+
+  .my-sr-counter-label {
+    font-size: 0.66rem;
+  }
+
+  .my-sr-counter-val {
+    font-size: 0.92rem;
+  }
+
+  .my-sr-flashcard {
+    padding: 10px 12px;
+    min-height: 0;
+    gap: 8px;
+  }
+
+  .my-sr-meta-row {
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+
+  .my-sr-meta-left {
+    gap: 4px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .my-sr-pill {
+    font-size: 0.68rem;
+    padding: 2px 7px;
+  }
+
+  .my-sr-meta-right {
+    flex-wrap: nowrap;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  /* На телефоне оставляем на кнопках карточки только иконки 🔊 💬 ✎ в один ряд */
+  .my-sr-btn-label {
+    display: none;
+  }
+
+  .my-sr-card-tool-btn {
+    min-width: 34px;
+    min-height: 30px;
+    padding: 0 7px;
+    font-size: 0.82rem;
+  }
+
+  .my-sr-center {
+    padding: 10px 6px;
+    gap: 8px;
+  }
+
+  .my-sr-prompt-text {
+    font-size: 1.45rem;
+  }
+
+  .my-sr-answer-text {
+    font-size: 1.28rem;
+  }
+
+  .my-sr-context-chip {
+    font-size: 0.68rem;
+    padding: 2px 7px;
+  }
+
+  .my-sr-flip-btn {
+    min-height: 50px;
+    font-size: 0.96rem;
+  }
+
   .my-sr-grade-grid {
     grid-template-columns: repeat(2, 1fr);
+    gap: 7px;
   }
+
+  button.my-sr-grade-btn {
+    min-height: 52px;
+    padding: 6px 8px;
+  }
+
   .my-sr-grade-key {
     display: none;
   }

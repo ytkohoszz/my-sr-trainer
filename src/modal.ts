@@ -765,7 +765,7 @@ export class SrTrainerModal extends Modal {
 
     const todayISO = getTodayISO();
 
-    // 1. Шапка переключения режима: 🇬🇧 Английский | 🎓 Учёба
+    // 1. Верхняя панель: вкладки 🇬🇧 Английский | 🎓 Учёба + кнопка закрытия ✕
     const scopeBar = contentEl.createDiv("my-sr-scope-bar");
     const scopes: Array<{ id: TrainerScope; label: string }> = [
       {
@@ -795,6 +795,17 @@ export class SrTrainerModal extends Modal {
       };
     }
 
+    const closeModalBtn = scopeBar.createEl("button", {
+      cls: "my-sr-close-btn",
+      text: "✕",
+      attr: {
+        type: "button",
+        title: "Закрыть тренажёр (Esc)",
+        "aria-label": "Закрыть тренажёр",
+      },
+    });
+    closeModalBtn.onclick = () => this.safeClose();
+
     // 2. Панель фильтров и инструментов
     const toolbar = contentEl.createDiv("my-sr-toolbar");
     const selectsWrap = toolbar.createDiv("my-sr-selects");
@@ -814,8 +825,8 @@ export class SrTrainerModal extends Modal {
         },
         { value: "DUE_ONLY", label: `⏰ К повторению (${dueCnt})` },
         { value: "NEW_ONLY", label: `✨ Только новые (${newCnt})` },
-        { value: "HARD", label: "⚠️ Только сложные" },
-        { value: "BOOK", label: "📖 Слова из книги" },
+        { value: "HARD", label: "⚠️ Сложные" },
+        { value: "BOOK", label: "📖 Из книги" },
       ];
       for (const m of engModes) {
         const o = modeSel.createEl("option", { text: m.label, value: m.value });
@@ -897,7 +908,7 @@ export class SrTrainerModal extends Modal {
         { value: "CRAM_ALL", label: "🎯 Краш-тест (все)" },
         { value: "DUE_ONLY", label: "⏰ К повторению" },
         { value: "NEW_ONLY", label: "✨ Только новые" },
-        { value: "HARD", label: "⚠️ Только сложные" },
+        { value: "HARD", label: "⚠️ Сложные" },
       ];
       for (const m of stModes) {
         const o = modeSel.createEl("option", { text: m.label, value: m.value });
@@ -1137,6 +1148,7 @@ export class SrTrainerModal extends Modal {
     const progFill = progTrack.createDiv("my-sr-progress-fill");
     progFill.style.width = `${pctDone}%`;
 
+    // Единая компактная строка бейджей и кнопок карточки
     const metaRow = topSection.createDiv("my-sr-meta-row");
     const metaLeft = metaRow.createDiv("my-sr-meta-left");
 
@@ -1147,7 +1159,7 @@ export class SrTrainerModal extends Modal {
       });
 
       const stageLabel = isRelearning
-        ? "↻ Повтор в сессии"
+        ? "↻ Повтор"
         : activeDir.isNew
           ? "✨ Новая"
           : activeDir.interval >= MATURE_DAYS
@@ -1206,27 +1218,30 @@ export class SrTrainerModal extends Modal {
 
     if (this.trainerScope === "english") {
       const speakBtn = metaRight.createEl("button", {
-        cls: "my-sr-chip-btn",
-        text: "🔊 Озвучить",
+        cls: "my-sr-card-tool-btn",
         attr: {
           type: "button",
           title: "Озвучить слово (клавиша R)",
           "aria-label": "Озвучить слово",
         },
       });
+      speakBtn.createSpan({ text: "🔊" });
+      speakBtn.createSpan({ cls: "my-sr-btn-label", text: " Озвучить" });
       speakBtn.onclick = (ev) => {
         ev.stopPropagation();
         speakEnglishText(activeCard.question);
       };
 
       const exBtn = metaRight.createEl("button", {
-        cls: "my-sr-chip-btn" + (examplesOpen ? " is-active" : ""),
-        text: "💬 Пример",
+        cls: "my-sr-card-tool-btn" + (examplesOpen ? " is-active" : ""),
         attr: {
           type: "button",
           title: "Показать примеры предложений со словом (клавиша E)",
+          "aria-label": "Примеры предложений",
         },
       });
+      exBtn.createSpan({ text: "💬" });
+      exBtn.createSpan({ cls: "my-sr-btn-label", text: " Пример" });
       exBtn.onclick = (ev) => {
         ev.stopPropagation();
         this.toggleExamplesForActiveCard(activeCard);
@@ -1234,7 +1249,7 @@ export class SrTrainerModal extends Modal {
     }
 
     const editBtn = metaRight.createEl("button", {
-      cls: "my-sr-chip-btn" + (this.inlineEditOpen ? " is-active" : ""),
+      cls: "my-sr-card-tool-btn" + (this.inlineEditOpen ? " is-active" : ""),
       text: "✎",
       attr: {
         type: "button",
