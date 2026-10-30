@@ -1,4 +1,4 @@
-/* my-sr-trainer 0.1.2. Все правила ограничены интерфейсом тренажёра. */
+/* my-sr-trainer 0.1.3. Все правила ограничены интерфейсом тренажёра. */
 .modal.my-sr-modal-container {
   box-sizing: border-box;
   width: min(880px, 95vw) !important;
@@ -14,7 +14,12 @@
   overflow: hidden;
 }
 
-.modal.my-sr-modal-container > .modal-close-button {
+/* На телефоне штатная кнопка может находиться вне .modal, в контейнере.
+   Собственная шапка уже содержит доступную кнопку закрытия. */
+.modal-container.my-sr-overlay .modal-close-button,
+.modal-container.my-sr-overlay > .modal-header,
+.modal.my-sr-modal-container > .modal-header,
+.modal.my-sr-modal-container > .modal-title {
   display: none !important;
 }
 
@@ -575,15 +580,21 @@
 }
 
 @media (max-width: 640px) {
-  /* Размер по контейнеру WebView, без дополнительного выхода за его границы. */
+  /* Safe area учитывается один раз, на внешнем контейнере, а не на шапке. */
   .modal-container.my-sr-overlay {
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    min-height: 0;
-    padding: 0;
-    align-items: stretch;
-    justify-content: stretch;
+    position: fixed !important;
+    inset: 0 !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px))
+      max(env(safe-area-inset-right, 0px), var(--safe-area-inset-right, 0px))
+      max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px))
+      max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px)) !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
   }
 
   .modal.my-sr-modal-container {
@@ -599,19 +610,31 @@
     margin: 0 !important;
     border: 0 !important;
     border-radius: 0 !important;
-    padding: max(8px, env(safe-area-inset-top, 0px))
-      max(10px, env(safe-area-inset-right, 0px))
-      max(10px, env(safe-area-inset-bottom, 0px))
-      max(10px, env(safe-area-inset-left, 0px)) !important;
+    padding: 6px 10px !important;
   }
 
   .modal.my-sr-modal-container .modal-content.my-sr-modal {
-    gap: 7px;
+    gap: 6px;
+  }
+
+  .my-sr-modal .my-sr-scope-bar {
+    gap: 5px;
+    padding-bottom: 4px;
+  }
+
+  .my-sr-modal button,
+  .my-sr-modal select.dropdown {
+    border-radius: 10px;
+  }
+
+  .my-sr-modal .my-sr-scope-tab {
+    font-size: 14px;
   }
 
   .my-sr-modal .my-sr-toolbar {
     flex-direction: column;
     align-items: stretch;
+    gap: 5px;
   }
 
   .my-sr-modal .my-sr-selects {
@@ -619,6 +642,7 @@
     grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
     flex: 0 0 auto;
     width: 100%;
+    gap: 5px;
   }
 
   .my-sr-modal .my-sr-selects select {
@@ -632,7 +656,7 @@
   }
 
   .my-sr-modal .my-sr-tools {
-    gap: 6px;
+    gap: 4px;
   }
 
   .my-sr-modal .my-sr-tools button {
@@ -642,26 +666,69 @@
   }
 
   .my-sr-modal .my-sr-flashcard {
-    gap: 8px;
-    padding: 10px;
+    gap: 7px;
+    padding: 8px;
     scrollbar-gutter: auto;
   }
 
-  .my-sr-modal .my-sr-meta-row {
-    flex-direction: column;
-    align-items: stretch;
+  .my-sr-modal .my-sr-flashcard-top {
     gap: 6px;
   }
 
-  .my-sr-modal .my-sr-meta-left,
+  /* Это индикаторы, а не кнопки: им не нужна высота тач-таргета. */
+  .my-sr-modal .my-sr-counter-rect {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 4px;
+    min-height: 36px;
+    padding: 5px 6px;
+    border-radius: 7px;
+  }
+
+  .my-sr-modal .my-sr-counter-label {
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .my-sr-modal .my-sr-counter-val {
+    font-size: 16px;
+    line-height: 1.2;
+  }
+
+  .my-sr-modal .my-sr-meta-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .my-sr-modal .my-sr-meta-left {
+    width: auto;
+    gap: 4px;
+  }
+
   .my-sr-modal .my-sr-meta-right {
-    width: 100%;
-    flex-wrap: wrap;
+    width: auto;
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+
+  .my-sr-modal .my-sr-meta-left .my-sr-pill {
+    padding: 3px 6px;
   }
 
   .my-sr-modal .my-sr-card-tool-btn {
-    font-size: 13px;
-    padding-inline: 10px;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    font-size: 16px;
+  }
+
+  /* Доступные имена остаются в aria-label и title кнопок. */
+  .my-sr-modal .my-sr-card-tool-btn .my-sr-btn-label {
+    display: none;
   }
 
   .my-sr-modal .my-sr-center {
@@ -687,6 +754,18 @@
     font-size: 13px;
   }
 
+  .my-sr-modal .my-sr-flip-btn {
+    min-height: 48px;
+    font-size: 18px;
+  }
+
+  .my-sr-modal button.my-sr-grade-btn {
+    min-height: 52px;
+    gap: 3px;
+    padding: 6px 4px;
+    border-radius: 9px;
+  }
+
   .my-sr-modal .my-sr-grade-key {
     display: none;
   }
@@ -698,9 +777,10 @@
   }
 
   .my-sr-modal .my-sr-counter-rect {
-    flex-direction: column;
-    align-items: center;
-    padding: 5px 3px;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 2px;
+    padding: 4px 3px;
   }
 
   .my-sr-modal .my-sr-grade-grid {
