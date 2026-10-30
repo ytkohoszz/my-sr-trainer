@@ -129,6 +129,7 @@ export class SrTrainerModal extends Modal {
       this as unknown as { shouldRestoreSelection?: boolean }
     ).shouldRestoreSelection = false;
     this.modalEl.addClass("my-sr-modal-container");
+    this.containerEl.addClass("my-sr-overlay");
     this.contentEl.addClass("my-sr-modal");
 
     this.keyHandler = (e: KeyboardEvent) => this.handleKeyDown(e);
@@ -691,7 +692,11 @@ export class SrTrainerModal extends Modal {
         return;
       }
 
-      if (items.length > 3) {
+      if (items.length > 1) {
+        head.createSpan({
+          cls: "my-sr-examples-position",
+          text: `${(this.examplesOffset % items.length) + 1} / ${items.length}`,
+        });
         const moreBtn = head.createEl("button", {
           cls: "my-sr-chip-btn",
           text: "↻ Ещё",
@@ -699,12 +704,12 @@ export class SrTrainerModal extends Modal {
         });
         moreBtn.onclick = (ev) => {
           ev.stopPropagation();
-          this.examplesOffset += 3;
-          this.render();
+          this.examplesOffset = (this.examplesOffset + 1) % items.length;
+          drawItems(items);
         };
       }
 
-      const count = Math.min(3, items.length);
+      const count = Math.min(1, items.length);
       const start = this.examplesOffset % items.length;
       const shown: ExampleSentenceItem[] = [];
       for (let i = 0; i < count; i++) {
@@ -717,21 +722,6 @@ export class SrTrainerModal extends Modal {
         const line = row.createDiv("my-sr-example-line");
         appendHighlightedSentence(line, it.text, word, mask);
 
-        if (!mask) {
-          const sp = row.createEl("button", {
-            cls: "my-sr-chip-btn",
-            text: "🔊",
-            attr: {
-              type: "button",
-              title: "Озвучить предложение",
-              "aria-label": "Озвучить предложение",
-            },
-          });
-          sp.onclick = (ev) => {
-            ev.stopPropagation();
-            speakEnglishText(it.text);
-          };
-        }
       }
 
       const sources = [...new Set(shown.map((x) => x.source))].join(", ");
@@ -770,11 +760,11 @@ export class SrTrainerModal extends Modal {
     const scopes: Array<{ id: TrainerScope; label: string }> = [
       {
         id: "english",
-        label: `🇬🇧 Английский (${this.englishData?.dueScheduled ?? 0})`,
+        label: "🇬🇧 Английский",
       },
       {
         id: "study",
-        label: `🎓 Учёба (${this.studyTotals.sumDue})`,
+        label: "🎓 Учёба",
       },
     ];
 
@@ -821,10 +811,10 @@ export class SrTrainerModal extends Modal {
       const engModes: Array<{ value: EnglishTrainerMode; label: string }> = [
         {
           value: "DUE_AND_NEW",
-          label: `🔥 По расписанию (${dueCnt}) + новые`,
+          label: `План + новые (${dueCnt})`,
         },
-        { value: "DUE_ONLY", label: `⏰ К повторению (${dueCnt})` },
-        { value: "NEW_ONLY", label: `✨ Только новые (${newCnt})` },
+        { value: "DUE_ONLY", label: `К повторению (${dueCnt})` },
+        { value: "NEW_ONLY", label: `Только новые (${newCnt})` },
         { value: "HARD", label: "⚠️ Сложные" },
         { value: "BOOK", label: "📖 Из книги" },
       ];
@@ -904,7 +894,7 @@ export class SrTrainerModal extends Modal {
         attr: { title: "Режим тренировки" },
       });
       const stModes: Array<{ value: StudyTrainerMode; label: string }> = [
-        { value: "DUE_AND_NEW", label: "🔥 По расписанию + новые" },
+        { value: "DUE_AND_NEW", label: "План + новые" },
         { value: "CRAM_ALL", label: "🎯 Краш-тест (все)" },
         { value: "DUE_ONLY", label: "⏰ К повторению" },
         { value: "NEW_ONLY", label: "✨ Только новые" },
@@ -960,6 +950,8 @@ export class SrTrainerModal extends Modal {
       attr: {
         type: "button",
         title: "Письменная проверка ответа перед переворотом",
+        "aria-label": "Письменная проверка",
+        "aria-pressed": String(typingOn),
       },
     });
     typingBtn.onclick = () => {
@@ -980,6 +972,7 @@ export class SrTrainerModal extends Modal {
         attr: {
           type: "button",
           title: "Автоматически озвучивать английское слово",
+          "aria-pressed": String(ttsOn),
         },
       });
       ttsBtn.onclick = () => {
@@ -1215,6 +1208,7 @@ export class SrTrainerModal extends Modal {
     const exKey = `${activeCard.lineIndex}|${activeCard.question}`;
     const examplesOpen =
       this.trainerScope === "english" && this.examplesKey === exKey;
+    flashcardEl.toggleClass("has-examples", examplesOpen);
 
     if (this.trainerScope === "english") {
       const speakBtn = metaRight.createEl("button", {
@@ -1238,6 +1232,7 @@ export class SrTrainerModal extends Modal {
           type: "button",
           title: "Показать примеры предложений со словом (клавиша E)",
           "aria-label": "Примеры предложений",
+          "aria-expanded": String(examplesOpen),
         },
       });
       exBtn.createSpan({ text: "💬" });
@@ -1477,19 +1472,6 @@ export class SrTrainerModal extends Modal {
           cls: "my-sr-example-text",
           text: activeCard.exampleOrHint,
         });
-        const spExBtn = exRow.createEl("button", {
-          cls: "my-sr-chip-btn",
-          text: "🔊",
-          attr: {
-            type: "button",
-            title: "Озвучить пример предложения",
-            "aria-label": "Озвучить пример предложения",
-          },
-        });
-        spExBtn.onclick = (ev) => {
-          ev.stopPropagation();
-          speakEnglishText(activeCard.exampleOrHint);
-        };
       }
 
       if (this.trainerScope === "study" && activeCard.exampleOrHint) {

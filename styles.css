@@ -1,720 +1,709 @@
-/* Убираем стандартное ограничение Obsidian (max-width: 600px) и делаем окно просторным на ПК и iPad */
+/* my-sr-trainer 0.1.2. Все правила ограничены интерфейсом тренажёра. */
 .modal.my-sr-modal-container {
+  box-sizing: border-box;
   width: min(880px, 95vw) !important;
   max-width: 880px !important;
+  height: min(820px, 92vh);
+  height: min(820px, 92dvh);
   max-height: 92vh !important;
+  max-height: 92dvh !important;
   padding: 18px 22px !important;
   border-radius: 14px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
-/* Скрываем стандартную плавающую кнопку закрытия Obsidian, так как она встроена в нашу верхнюю панель */
 .modal.my-sr-modal-container > .modal-close-button {
   display: none !important;
 }
 
-.my-sr-modal {
+.modal.my-sr-modal-container .modal-content.my-sr-modal {
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
+  flex: 1 1 0;
+  width: 100%;
+  min-width: 0;
   min-height: 0;
-  gap: 12px;
-  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  gap: 10px;
+  overflow: hidden;
 }
 
+.my-sr-modal,
 .my-sr-modal * {
   box-sizing: border-box;
 }
 
-/* 1. Верхняя панель вкладок и кнопки закрытия */
-.my-sr-scope-bar {
-  display: flex;
+/* Не наследуем растягивание кнопок из мобильной темы Obsidian. */
+.my-sr-modal button {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding-bottom: 10px;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 44px;
+  min-height: 44px;
+  height: auto;
+  margin: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 999px;
+  background: var(--background-primary);
+  box-shadow: none;
+  color: var(--text-normal);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.my-sr-modal button:focus-visible,
+.my-sr-modal select:focus-visible,
+.my-sr-modal input:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.my-sr-modal button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.my-sr-modal .my-sr-scope-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 6px;
   border-bottom: 1px solid var(--background-modifier-border);
   flex-shrink: 0;
 }
 
-.my-sr-scope-tab {
-  flex: 1 1 0;
+.my-sr-modal .my-sr-scope-tab {
+  width: 100%;
   min-width: 0;
-  min-height: 40px;
-  padding: 0 10px;
-  font-size: 0.9rem;
-  font-weight: 700;
-  border-radius: 9px;
-  cursor: pointer;
-  white-space: nowrap;
+  padding: 6px 8px;
   overflow: hidden;
   text-overflow: ellipsis;
+  border-radius: 10px;
 }
 
-.my-sr-scope-tab.is-active {
-  background: var(--interactive-accent) !important;
-  color: var(--text-on-accent) !important;
+.my-sr-modal .my-sr-scope-tab.is-active {
+  background: var(--interactive-accent);
+  border-color: var(--interactive-accent);
+  color: var(--text-on-accent);
 }
 
-.my-sr-close-btn {
-  flex: 0 0 auto;
-  width: 40px;
-  min-height: 40px;
+.my-sr-modal .my-sr-close-btn {
+  width: 44px;
   padding: 0;
-  border-radius: 9px;
-  font-size: 1rem;
-  font-weight: 700;
   color: var(--text-muted);
-  cursor: pointer;
 }
 
-/* 2. Панель выборок и инструментов */
-.my-sr-toolbar {
+.my-sr-modal .my-sr-toolbar {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
-}
-
-.my-sr-selects {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  flex: 1 1 320px;
   min-width: 0;
 }
 
-.my-sr-selects select.dropdown {
-  flex: 1 1 150px;
+.my-sr-modal .my-sr-selects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1 1 420px;
+  min-width: 0;
+}
+
+.my-sr-modal select.dropdown {
+  width: auto;
   min-width: 0;
   max-width: 100%;
-  min-height: 36px;
-  font-size: 0.82rem;
+  min-height: 44px;
+  height: 44px;
+  margin: 0;
+  padding-block: 0;
+  padding-inline: 10px 28px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 999px;
+  box-shadow: none;
+  font-size: 14px;
+  background-color: var(--background-secondary);
+  color: var(--text-normal);
   text-overflow: ellipsis;
 }
 
-.my-sr-tools {
+.my-sr-modal .my-sr-selects select {
+  flex: 1 1 140px;
+}
+
+.my-sr-modal .my-sr-tools {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
   align-items: center;
-}
-
-.my-sr-chip-btn {
-  min-height: 36px;
-  padding: 0 11px;
-  border-radius: 8px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.my-sr-chip-btn.is-active {
-  border: 1px solid var(--interactive-accent) !important;
-  color: var(--interactive-accent) !important;
-  background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-primary));
-}
-
-.my-sr-undo-btn {
-  color: #e5a158 !important;
-  border-color: rgba(229, 161, 88, 0.45) !important;
-}
-
-/* 3. Плитки счётчиков */
-.my-sr-counter-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.my-sr-counter-rect {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 6px;
-  padding: 7px 12px;
-  border-radius: 9px;
-  background: color-mix(in srgb, var(--cnt-color) 14%, var(--background-primary));
-  border: 1px solid color-mix(in srgb, var(--cnt-color) 42%, var(--background-modifier-border));
   min-width: 0;
 }
 
-.my-sr-counter-label {
-  font-size: 0.76rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.my-sr-modal .my-sr-chip-btn.is-active,
+.my-sr-modal .my-sr-card-tool-btn.is-active {
+  border-color: var(--interactive-accent);
+  color: var(--interactive-accent);
+  background: color-mix(in srgb, var(--interactive-accent) 10%, var(--background-primary));
 }
 
-.my-sr-counter-val {
-  font-size: 0.96rem;
-  font-weight: 750;
-  color: var(--cnt-color);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.my-sr-progress-track {
-  height: 5px;
-  border-radius: 999px;
-  background: var(--background-modifier-border);
-  overflow: hidden;
-}
-
-.my-sr-progress-fill {
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #599ed6, #4aab80);
-  transition: width 0.2s ease;
-}
-
-/* 4. Карточка вопроса (увеличена для ПК и iPad) */
-.my-sr-flashcard {
-  position: relative;
-  flex: 1 1 auto;
-  min-height: 330px;
-  padding: 16px 18px;
-  border-radius: 14px;
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 12px;
-  overflow-y: auto;
-}
-
-.my-sr-flashcard-top {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  flex-shrink: 0;
-}
-
-.my-sr-meta-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.my-sr-meta-left,
-.my-sr-meta-right {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.my-sr-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.74rem;
-  font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: var(--background-primary);
-  border: 1px solid var(--background-modifier-border);
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
-.my-sr-pill-clickable {
-  cursor: pointer;
+.my-sr-modal .my-sr-undo-btn {
   color: #e5a158;
   border-color: rgba(229, 161, 88, 0.45);
 }
 
-.my-sr-card-tool-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 32px;
-  padding: 0 10px;
-  border-radius: 8px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.my-sr-card-tool-btn.is-active {
-  border: 1px solid var(--interactive-accent) !important;
-  color: var(--interactive-accent) !important;
-  background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-primary));
-}
-
-.my-sr-center {
-  flex: 1 1 auto;
+/* Прокручивается только карточка. Кнопки оценки остаются снаружи. */
+.my-sr-modal .my-sr-flashcard {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
   gap: 12px;
-  padding: 22px 12px;
-  border-radius: 10px;
-  user-select: none;
-}
-
-.my-sr-center.is-clickable {
-  cursor: pointer;
-}
-
-.my-sr-center.is-clickable:active {
-  background: var(--background-modifier-hover);
-}
-
-.my-sr-prompt-text {
-  font-size: 1.85rem;
-  font-weight: 750;
-  color: var(--text-normal);
-  line-height: 1.26;
-  word-break: break-word;
-  max-width: 720px;
-}
-
-.my-sr-answer-text {
-  font-size: 1.55rem;
-  font-weight: 700;
-  color: #4aab80;
-  line-height: 1.32;
-  word-break: break-word;
-  max-width: 720px;
-}
-
-.my-sr-example-text {
-  font-size: 0.94rem;
-  color: var(--text-muted);
-  font-style: italic;
-  line-height: 1.42;
-  max-width: 660px;
-}
-
-.my-sr-example-flip-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.my-sr-context-grid {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
-}
-
-.my-sr-context-chip {
-  font-size: 0.74rem;
-  font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 7px;
-  background: var(--background-primary);
+  padding: 14px;
   border: 1px solid var(--background-modifier-border);
-  color: var(--text-muted);
-}
-
-.my-sr-divider {
-  width: 100%;
-  height: 1px;
-  background: var(--background-modifier-border);
-  margin: 6px 0;
-}
-
-.my-sr-type-wrap {
-  width: 100%;
-  max-width: 480px;
-  margin-top: 4px;
-}
-
-.my-sr-type-input {
-  width: 100%;
-  min-height: 42px;
-  font-size: 0.96rem;
-  text-align: center;
-  border-radius: 9px;
-}
-
-.my-sr-eval-result {
-  font-size: 0.88rem;
-  font-weight: 650;
-}
-
-.my-sr-examples-panel {
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 9px;
+  border-radius: 14px;
   background: var(--background-primary);
-  border: 1px solid var(--background-modifier-border);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.my-sr-modal .my-sr-flashcard-top {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font-size: 0.84rem;
-  flex-shrink: 0;
-}
-
-.my-sr-examples-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex: 0 0 auto;
   gap: 8px;
+  min-width: 0;
 }
 
-.my-sr-examples-title {
-  font-size: 0.76rem;
-  font-weight: 650;
-  color: var(--text-muted);
-}
-
-.my-sr-example-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.my-sr-example-line {
-  flex: 1;
-  line-height: 1.42;
-  color: var(--text-normal);
-}
-
-.my-sr-masked-word {
-  letter-spacing: 1px;
-  color: var(--text-muted);
-}
-
-.my-sr-examples-foot,
-.my-sr-examples-hint {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-}
-
-.my-sr-edit-box {
-  padding: 10px;
-  border-radius: 9px;
-  background: var(--background-primary);
-  border: 1px solid var(--interactive-accent);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.my-sr-input {
-  width: 100%;
-  min-height: 36px;
-  font-size: 0.86rem;
-}
-
-.my-sr-edit-foot {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.my-sr-edit-btns {
-  display: flex;
-  gap: 6px;
-}
-
-.my-sr-check-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.82rem;
-  cursor: pointer;
-}
-
-/* 5. Кнопки ответа внизу */
-.my-sr-bottom-controls {
-  flex-shrink: 0;
-}
-
-.my-sr-flip-btn {
-  width: 100%;
-  min-height: 54px;
-  font-size: 1rem;
-  font-weight: 700;
-  border-radius: 11px;
-  cursor: pointer;
-}
-
-.my-sr-grade-grid {
+.my-sr-modal .my-sr-counter-row {
   display: grid;
-  grid-template-columns: repeat(4, minmax(100px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
 }
 
-button.my-sr-grade-btn {
-  min-height: 58px;
-  padding: 8px 10px;
-  border-radius: 11px;
-  background: var(--background-primary);
-  border: 1px solid var(--background-modifier-border);
-  border-bottom: 3px solid var(--grade-color, #599ed6);
+.my-sr-modal .my-sr-counter-rect {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  gap: 3px;
-  cursor: pointer;
+  justify-content: space-between;
+  gap: 2px 6px;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid color-mix(in srgb, var(--cnt-color) 42%, var(--background-modifier-border));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--cnt-color) 12%, var(--background-primary));
 }
 
-button.my-sr-grade-btn:hover:not(:disabled) {
-  border-color: var(--grade-color, #599ed6);
-}
-
-.my-sr-grade-title {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--text-normal);
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.my-sr-grade-key {
-  font-size: 0.68rem;
-  font-weight: 700;
-  padding: 0 5px;
-  border-radius: 4px;
-  background: var(--background-secondary);
-  color: var(--grade-color);
-}
-
-.my-sr-grade-sub {
-  font-size: 0.74rem;
-  font-weight: 600;
+.my-sr-modal .my-sr-counter-label {
   color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.my-sr-modal .my-sr-counter-val {
+  color: var(--cnt-color);
+  font-size: 17px;
+  font-weight: 750;
   font-variant-numeric: tabular-nums;
 }
 
-.my-sr-done-center {
-  flex: 1 1 auto;
+.my-sr-modal .my-sr-progress-track {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--background-modifier-border);
+}
+
+.my-sr-modal .my-sr-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #599ed6, #4aab80);
+}
+
+.my-sr-modal .my-sr-meta-row,
+.my-sr-modal .my-sr-meta-left,
+.my-sr-modal .my-sr-meta-right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.my-sr-modal .my-sr-meta-row {
+  justify-content: space-between;
+}
+
+.my-sr-modal .my-sr-pill {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-width: 0;
+  padding: 5px 9px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 999px;
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.my-sr-modal .my-sr-pill-clickable {
+  min-height: 44px;
+  color: #e5a158;
+  border-color: rgba(229, 161, 88, 0.45);
+  cursor: pointer;
+}
+
+.my-sr-modal .my-sr-card-tool-btn {
+  gap: 4px;
+  padding-inline: 10px;
+}
+
+.my-sr-modal .my-sr-center {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  flex: 1 0 auto;
+  min-width: 0;
+  min-height: 180px;
   gap: 12px;
-  padding: 32px 12px;
+  padding: 20px 8px;
+  text-align: center;
 }
 
-.my-sr-done-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #4aab80;
-}
-
-.my-sr-done-sub {
-  font-size: 0.9rem;
-  color: var(--text-muted);
-}
-
-.my-sr-done-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: center;
-}
-
-.my-sr-action-btn {
-  min-height: 40px;
-  padding: 0 14px;
-  border-radius: 9px;
-  font-weight: 650;
+.my-sr-modal .my-sr-center.is-clickable {
   cursor: pointer;
 }
 
-@media (min-width: 641px) {
-  .my-sr-chip-btn,
-  .my-sr-scope-tab,
-  .my-sr-action-btn,
-  .my-sr-close-btn {
-    min-height: 42px;
-  }
+.my-sr-modal .has-examples .my-sr-center {
+  min-height: 140px;
 }
 
-/* Адаптация под телефон (полноэкранный режим без обрезанных счётчиков и расползающихся кнопок) */
+.my-sr-modal .my-sr-prompt-text,
+.my-sr-modal .my-sr-answer-text {
+  width: 100%;
+  max-width: 720px;
+  font-weight: 750;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.my-sr-modal .my-sr-prompt-text {
+  color: var(--text-normal);
+  font-size: 34px;
+}
+
+.my-sr-modal .my-sr-answer-text {
+  color: #4aab80;
+  font-size: 28px;
+}
+
+.my-sr-modal .my-sr-example-text {
+  max-width: 660px;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.my-sr-modal .my-sr-example-flip-row {
+  max-width: 100%;
+}
+
+.my-sr-modal .my-sr-context-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 5px;
+  max-width: 100%;
+}
+
+.my-sr-modal .my-sr-context-chip {
+  padding: 4px 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 7px;
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.my-sr-modal .my-sr-divider {
+  width: 100%;
+  height: 1px;
+  margin: 4px 0;
+  background: var(--background-modifier-border);
+}
+
+.my-sr-modal .my-sr-type-wrap {
+  width: 100%;
+  max-width: 480px;
+}
+
+.my-sr-modal input.my-sr-type-input,
+.my-sr-modal input.my-sr-input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  height: 44px;
+  font-size: 16px;
+  border-radius: 9px;
+}
+
+.my-sr-modal .my-sr-type-input {
+  text-align: center;
+}
+
+.my-sr-modal .my-sr-eval-result {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Один пример на всю ширину. Никаких кнопок озвучки рядом с текстом. */
+.my-sr-modal .my-sr-examples-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  background: var(--background-secondary);
+}
+
+.my-sr-modal .my-sr-examples-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+}
+
+.my-sr-modal .my-sr-examples-title {
+  flex: 1 1 100px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.my-sr-modal .my-sr-examples-position {
+  color: var(--text-faint);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.my-sr-modal .my-sr-example-row {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.my-sr-modal .my-sr-example-line {
+  width: 100%;
+  min-width: 0;
+  color: var(--text-normal);
+  font-size: 16px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.my-sr-modal .my-sr-example-line mark,
+.my-sr-modal .my-sr-example-line strong {
+  color: var(--interactive-accent);
+  background: transparent;
+  font-weight: 700;
+}
+
+.my-sr-modal .my-sr-masked-word {
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+.my-sr-modal .my-sr-examples-foot,
+.my-sr-modal .my-sr-examples-hint {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.my-sr-modal .my-sr-edit-box {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--interactive-accent);
+  border-radius: 9px;
+  background: var(--background-secondary);
+}
+
+.my-sr-modal .my-sr-edit-foot,
+.my-sr-modal .my-sr-edit-btns,
+.my-sr-modal .my-sr-done-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.my-sr-modal .my-sr-edit-foot select {
+  flex: 1 1 160px;
+}
+
+.my-sr-modal .my-sr-check-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.my-sr-modal .my-sr-bottom-controls {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.my-sr-modal .my-sr-flip-btn {
+  width: 100%;
+  min-height: 52px;
+  border-radius: 12px;
+  border-color: var(--interactive-accent);
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.my-sr-modal .my-sr-grade-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.my-sr-modal button.my-sr-grade-btn {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  min-height: 58px;
+  gap: 4px;
+  padding: 8px 4px;
+  border-radius: 10px;
+  border-bottom: 3px solid var(--grade-color, #599ed6);
+  white-space: normal;
+}
+
+.my-sr-modal .my-sr-grade-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.my-sr-modal .my-sr-grade-key {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--background-secondary);
+  color: var(--grade-color);
+  font-size: 11px;
+}
+
+.my-sr-modal .my-sr-grade-sub {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.my-sr-modal .my-sr-done-center {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  gap: 12px;
+  padding: 20px 8px;
+  text-align: center;
+}
+
+.my-sr-modal .my-sr-done-title {
+  color: #4aab80;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.my-sr-modal .my-sr-done-sub {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.my-sr-modal .my-sr-done-actions {
+  justify-content: center;
+}
+
+.my-sr-modal .my-sr-action-btn.mod-cta {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
 @media (max-width: 640px) {
-  .modal.my-sr-modal-container {
-    width: 100vw !important;
-    max-width: 100vw !important;
-    height: 100dvh !important;
-    max-height: 100dvh !important;
-    margin: 0 !important;
-    border-radius: 0 !important;
-    border: none !important;
-    padding-top: max(10px, env(safe-area-inset-top, 10px)) !important;
-    padding-bottom: max(12px, env(safe-area-inset-bottom, 12px)) !important;
-    padding-left: max(10px, env(safe-area-inset-left, 10px)) !important;
-    padding-right: max(10px, env(safe-area-inset-right, 10px)) !important;
-  }
-
-  .my-sr-modal {
-    gap: 8px;
+  /* Размер по контейнеру WebView, без дополнительного выхода за его границы. */
+  .modal-container.my-sr-overlay {
+    inset: 0;
+    width: 100%;
     height: 100%;
+    min-height: 0;
+    padding: 0;
+    align-items: stretch;
+    justify-content: stretch;
   }
 
-  .my-sr-scope-bar {
+  .modal.my-sr-modal-container {
+    position: relative;
+    inset: auto;
+    transform: none;
+    flex: 1 1 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding: max(8px, env(safe-area-inset-top, 0px))
+      max(10px, env(safe-area-inset-right, 0px))
+      max(10px, env(safe-area-inset-bottom, 0px))
+      max(10px, env(safe-area-inset-left, 0px)) !important;
+  }
+
+  .modal.my-sr-modal-container .modal-content.my-sr-modal {
+    gap: 7px;
+  }
+
+  .my-sr-modal .my-sr-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .my-sr-modal .my-sr-selects {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    flex: 0 0 auto;
+    width: 100%;
+  }
+
+  .my-sr-modal .my-sr-selects select {
+    width: 100%;
+    font-size: 13px;
+  }
+
+  /* Дополнительная книга или учебная колода получает отдельную строку. */
+  .my-sr-modal .my-sr-selects select:first-child:nth-last-child(3) {
+    grid-column: 1 / -1;
+  }
+
+  .my-sr-modal .my-sr-tools {
     gap: 6px;
-    padding-bottom: 6px;
   }
 
-  .my-sr-scope-tab {
-    min-height: 36px;
-    font-size: 0.8rem;
-    padding: 0 8px;
+  .my-sr-modal .my-sr-tools button {
+    flex: 0 0 auto;
+    padding-inline: 10px;
+    font-size: 13px;
   }
 
-  .my-sr-close-btn {
-    width: 36px;
-    min-height: 36px;
+  .my-sr-modal .my-sr-flashcard {
+    gap: 8px;
+    padding: 10px;
+    scrollbar-gutter: auto;
   }
 
-  .my-sr-toolbar {
+  .my-sr-modal .my-sr-meta-row {
     flex-direction: column;
     align-items: stretch;
     gap: 6px;
   }
 
-  .my-sr-selects {
-    flex: 0 0 auto;
+  .my-sr-modal .my-sr-meta-left,
+  .my-sr-modal .my-sr-meta-right {
     width: 100%;
-    display: grid;
-    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-    gap: 6px;
+    flex-wrap: wrap;
   }
 
-  .my-sr-selects select.dropdown {
-    width: 100%;
-    min-height: 32px;
-    font-size: 0.75rem;
-    padding: 0 8px;
+  .my-sr-modal .my-sr-card-tool-btn {
+    font-size: 13px;
+    padding-inline: 10px;
   }
 
-  .my-sr-tools {
-    width: 100%;
-    display: flex;
-    gap: 5px;
+  .my-sr-modal .my-sr-center {
+    min-height: 160px;
+    padding: 16px 2px;
+    gap: 10px;
   }
 
-  .my-sr-chip-btn {
-    flex: 1 1 auto;
-    min-height: 32px;
-    padding: 0 8px;
-    font-size: 0.74rem;
-    text-align: center;
-    justify-content: center;
+  .my-sr-modal .has-examples .my-sr-center {
+    min-height: 120px;
+    padding-block: 12px;
   }
 
-  /* На телефоне складываем подпись и число вертикально, чтобы «Пройдено» никогда не обрезало цифру */
-  .my-sr-counter-row {
-    gap: 6px;
+  .my-sr-modal .my-sr-prompt-text {
+    font-size: 30px;
   }
 
-  .my-sr-counter-rect {
+  .my-sr-modal .my-sr-answer-text {
+    font-size: 25px;
+  }
+
+  .my-sr-modal .my-sr-grade-title {
+    font-size: 13px;
+  }
+
+  .my-sr-modal .my-sr-grade-key {
+    display: none;
+  }
+}
+
+@media (max-width: 359px) {
+  .my-sr-modal .my-sr-scope-tab {
+    font-size: 12px;
+  }
+
+  .my-sr-modal .my-sr-counter-rect {
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 1px;
-    padding: 5px 4px;
-    text-align: center;
+    padding: 5px 3px;
   }
 
-  .my-sr-counter-label {
-    font-size: 0.66rem;
-  }
-
-  .my-sr-counter-val {
-    font-size: 0.92rem;
-  }
-
-  .my-sr-flashcard {
-    padding: 10px 12px;
-    min-height: 0;
-    gap: 8px;
-  }
-
-  .my-sr-meta-row {
-    flex-wrap: nowrap;
-    gap: 4px;
-  }
-
-  .my-sr-meta-left {
-    gap: 4px;
-    min-width: 0;
-    overflow: hidden;
-  }
-
-  .my-sr-pill {
-    font-size: 0.68rem;
-    padding: 2px 7px;
-  }
-
-  .my-sr-meta-right {
-    flex-wrap: nowrap;
-    gap: 4px;
-    flex-shrink: 0;
-  }
-
-  /* На телефоне оставляем на кнопках карточки только иконки 🔊 💬 ✎ в один ряд */
-  .my-sr-btn-label {
-    display: none;
-  }
-
-  .my-sr-card-tool-btn {
-    min-width: 34px;
-    min-height: 30px;
-    padding: 0 7px;
-    font-size: 0.82rem;
-  }
-
-  .my-sr-center {
-    padding: 10px 6px;
-    gap: 8px;
-  }
-
-  .my-sr-prompt-text {
-    font-size: 1.45rem;
-  }
-
-  .my-sr-answer-text {
-    font-size: 1.28rem;
-  }
-
-  .my-sr-context-chip {
-    font-size: 0.68rem;
-    padding: 2px 7px;
-  }
-
-  .my-sr-flip-btn {
-    min-height: 50px;
-    font-size: 0.96rem;
-  }
-
-  .my-sr-grade-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 7px;
-  }
-
-  button.my-sr-grade-btn {
-    min-height: 52px;
-    padding: 6px 8px;
-  }
-
-  .my-sr-grade-key {
-    display: none;
+  .my-sr-modal .my-sr-grade-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
