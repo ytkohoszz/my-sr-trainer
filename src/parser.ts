@@ -15,6 +15,11 @@ import {
   UndoSnapshot,
 } from "./types";
 import { cleanExample, cleanLineText, normStr } from "./examples";
+import {
+  classifyCardSide,
+  splitCardSidesSafe,
+  splitStudyFrontSafe,
+} from "./media";
 
 const decodeInline = (s: string): string =>
   String(s ?? "").replace(/⟩/g, ")").replace(/⟨/g, "(").trim();
@@ -179,16 +184,7 @@ function splitEnglishFront(rawFront: string): { word: string; example: string } 
 }
 
 function splitStudyFront(rawFront: string): { question: string; hint: string } {
-  const cleaned = String(rawFront ?? "")
-    .replace(/^[-*+]\s+/, "")
-    .replace(/^\d+[.)]\s+/, "")
-    .trim();
-  const hIdx = cleaned.indexOf(HINT_SEP);
-  if (hIdx === -1) return { question: cleaned, hint: "" };
-  return {
-    question: cleaned.slice(0, hIdx).trim(),
-    hint: cleaned.slice(hIdx + HINT_SEP.length).trim(),
-  };
+  return splitStudyFrontSafe(rawFront);
 }
 
 function splitBackAndSource(rawBack: string): {
@@ -792,31 +788,20 @@ function parseStudyDeckFileContent(
 
     const srIdx = line.indexOf("<!--SR:");
     const cardPart = srIdx === -1 ? line : line.slice(0, srIdx);
-    const trimmedPart = cardPart.trimStart();
+    const splitSides = splitCardSidesSafe(cardPart);
 
-    const isDataviewInlineField =
-      /\([а-яА-Яa-zA-Z0-9_]+::\s*[^)]+\)/.test(cardPart) &&
-      !/\s:::{0,1}\s/.test(cardPart);
-    const hasCardSep =
-      !trimmedPart.startsWith("#") &&
-      !trimmedPart.startsWith("```") &&
-      !isDataviewInlineField &&
-      /:{2,3}/.test(cardPart);
-
-    if (hasCardSep) {
+    if (splitSides) {
       finalizePendingAsUnscheduled();
 
-      const isBidirectional = cardPart.includes(":::");
-      const sepToken = isBidirectional ? ":::" : "::";
-      const sepPos = cardPart.indexOf(sepToken);
-      const rawFront = cardPart.slice(0, sepPos).trim();
-      const rawBack = cardPart.slice(sepPos + sepToken.length).trim();
+      const { rawFront, rawBack, isBidirectional } = splitSides;
 
       if (!rawFront || !rawBack) continue;
 
       totalEntries++;
       const expectedDirections = isBidirectional ? 2 : 1;
       const { question, hint } = splitStudyFront(rawFront);
+      const questionType = classifyCardSide(question);
+      const answerType = classifyCardSide(rawBack);
 
       const cardObj: SrCard = {
         uidKey: `${deckPath}:${i}`,
@@ -827,6 +812,10 @@ function parseStudyDeckFileContent(
         lineNumber: i + 1,
         question,
         answer: rawBack,
+        questionType,
+        answerType,
+        rawQuestion: question,
+        rawAnswer: rawBack,
         exampleOrHint: hint,
         rawSourceWiki: null,
         sourceTarget: null,

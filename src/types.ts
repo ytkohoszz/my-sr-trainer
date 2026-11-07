@@ -6,6 +6,8 @@ export const HINT_SEP = " // ";
 
 export type TrainerScope = "english" | "study";
 
+export type CardSideContentType = "text" | "formula" | "image" | "mixed";
+
 export type EnglishTrainerMode =
   | "DUE_AND_NEW"
   | "DUE_ONLY"
@@ -26,6 +28,7 @@ export interface SrTrainerSettings {
   wordsFilePath: string;
   booksFolder: string;
   studyDecksFolder: string;
+  studyAttachmentsFolder: string;
   knowledgeFolder: string;
   diaryFolder: string;
   englishNewSessionLimit: number;
@@ -39,6 +42,7 @@ export const DEFAULT_SETTINGS: SrTrainerSettings = {
   wordsFilePath: "Words Cards",
   booksFolder: "Знания/Книги",
   studyDecksFolder: "Знания/Карточки",
+  studyAttachmentsFolder: "Знания/Карточки/Вложения",
   knowledgeFolder: "Знания",
   diaryFolder: "Ежедневник",
   englishNewSessionLimit: 25,
@@ -76,6 +80,10 @@ export interface SrCard {
   lineNumber: number;
   question: string; // Для английского — английское слово (word)
   answer: string;   // Для английского — перевод (cleanBack)
+  questionType?: CardSideContentType;
+  answerType?: CardSideContentType;
+  rawQuestion?: string;
+  rawAnswer?: string;
   exampleOrHint: string; // Для английского — пример через " — ", для учёбы — подсказка через " // "
   rawSourceWiki: string | null;
   sourceTarget: string | null;

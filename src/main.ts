@@ -64,6 +64,21 @@ class SrTrainerSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
+      .setName("Папка вложений учебных карточек")
+      .setDesc(
+        "Для изображений в учебных карточках (по умолчанию: Знания/Карточки/Вложения)"
+      )
+      .addText((text) =>
+        text
+          .setValue(this.plugin.settings.studyAttachmentsFolder)
+          .onChange((val) => {
+            this.plugin.settings.studyAttachmentsFolder =
+              val.trim() || DEFAULT_SETTINGS.studyAttachmentsFolder;
+            this.plugin.requestSaveSettings();
+          })
+      );
+
+    new Setting(containerEl)
       .setName("Папка ежедневника")
       .setDesc(
         "Для автоматической синхронизации поля карточек_пройдено (по умолчанию: Ежедневник)"

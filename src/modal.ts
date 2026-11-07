@@ -1,4 +1,4 @@
-import { App, Modal, Notice } from "obsidian";
+import { App, Component, Modal, Notice } from "obsidian";
 import type MySrTrainerPlugin from "./main";
 import {
   BookInfo,
@@ -38,6 +38,8 @@ import {
   hasCachedExamples,
   speakEnglishText,
 } from "./examples";
+import { classifyCardSide } from "./media";
+import { renderStudySide } from "./render-side";
 
 export class SrTrainerModal extends Modal {
   plugin: MySrTrainerPlugin;
@@ -79,6 +81,7 @@ export class SrTrainerModal extends Modal {
 
   private keyHandler: ((e: KeyboardEvent) => void) | null = null;
   private isGrading = false;
+  private sideRenderComponent: Component | null = null;
 
   constructor(
     app: App,
@@ -143,6 +146,8 @@ export class SrTrainerModal extends Modal {
       window.removeEventListener("keydown", this.keyHandler);
       this.keyHandler = null;
     }
+    this.sideRenderComponent?.unload();
+    this.sideRenderComponent = null;
     this.contentEl.empty();
   }
 
@@ -601,6 +606,8 @@ export class SrTrainerModal extends Modal {
   }
 
   private handleKeyDown(e: KeyboardEvent) {
+    if (document.querySelector(".my-sr-image-overlay")) return;
+
     const activeTag = document.activeElement?.tagName;
     if (
       activeTag === "INPUT" ||
@@ -751,6 +758,9 @@ export class SrTrainerModal extends Modal {
 
   render() {
     const { contentEl } = this;
+    this.sideRenderComponent?.unload();
+    this.sideRenderComponent = new Component();
+    this.sideRenderComponent.load();
     contentEl.empty();
 
     const todayISO = getTodayISO();
@@ -943,17 +953,37 @@ export class SrTrainerModal extends Modal {
 
     const toolsWrap = toolbar.createDiv("my-sr-tools");
 
-    const typingOn = this.isTypingModeEnabled();
+    const activeCardForTyping = this.getCurrentCardAndDirection().card;
+    const hasStudyMedia =
+      this.trainerScope === "study" &&
+      Boolean(
+        activeCardForTyping &&
+          [activeCardForTyping.question, activeCardForTyping.answer].some(
+            (side, index) => {
+              const type =
+                index === 0
+                  ? activeCardForTyping.questionType
+                  : activeCardForTyping.answerType;
+              return ["image", "formula", "mixed"].includes(
+                type || classifyCardSide(side)
+              );
+            }
+          )
+      );
+    const typingOn = this.isTypingModeEnabled() && !hasStudyMedia;
     const typingBtn = toolsWrap.createEl("button", {
       cls: "my-sr-chip-btn" + (typingOn ? " is-active" : ""),
-      text: "⌨️ Ввод",
+      text: hasStudyMedia ? "⌨️ Ввод недоступен" : "⌨️ Ввод",
       attr: {
         type: "button",
-        title: "Письменная проверка ответа перед переворотом",
+        title: hasStudyMedia
+          ? "Письменный ввод недоступен для карточек с формулами или изображениями"
+          : "Письменная проверка ответа перед переворотом",
         "aria-label": "Письменная проверка",
         "aria-pressed": String(typingOn),
       },
     });
+    typingBtn.disabled = hasStudyMedia;
     typingBtn.onclick = () => {
       if (this.trainerScope === "english") {
         this.plugin.settings.englishTypingMode = !typingOn;
@@ -1267,7 +1297,7 @@ export class SrTrainerModal extends Modal {
         cls: "my-sr-input",
         attr: {
           type: "text",
-          value: activeCard.question,
+          value: activeCard.rawQuestion ?? activeCard.question,
           placeholder:
             this.trainerScope === "english"
               ? "Слово (EN) *"
@@ -1278,7 +1308,7 @@ export class SrTrainerModal extends Modal {
         cls: "my-sr-input",
         attr: {
           type: "text",
-          value: activeCard.answer,
+          value: activeCard.rawAnswer ?? activeCard.answer,
           placeholder:
             this.trainerScope === "english"
               ? "Перевод (RU) *"
@@ -1355,6 +1385,10 @@ export class SrTrainerModal extends Modal {
           });
           activeCard.question = nq;
           activeCard.answer = na;
+          activeCard.rawQuestion = nq;
+          activeCard.rawAnswer = na;
+          activeCard.questionType = classifyCardSide(nq);
+          activeCard.answerType = classifyCardSide(na);
           activeCard.exampleOrHint = nex;
           activeCard.isBidirectional = nextBi;
           activeCard.resolvedBook = chosenBook;
@@ -1380,8 +1414,39 @@ export class SrTrainerModal extends Modal {
 
     const promptText = isForward ? activeCard.question : activeCard.answer;
     const targetAnswer = isForward ? activeCard.answer : activeCard.question;
+    const promptRaw = isForward
+      ? activeCard.rawQuestion ?? activeCard.question
+      : activeCard.rawAnswer ?? activeCard.answer;
+    const targetRaw = isForward
+      ? activeCard.rawAnswer ?? activeCard.answer
+      : activeCard.rawQuestion ?? activeCard.question;
 
-    centerBox.createDiv({ cls: "my-sr-prompt-text", text: promptText });
+    if (this.trainerScope === "study") {
+      const promptEl = centerBox.createDiv("my-sr-prompt-text");
+      if (this.sideRenderComponent) {
+        void renderStudySide(
+          this.app,
+          promptRaw,
+          activeCard.deckPath,
+          this.sideRenderComponent
+        )
+          .then((rendered) => {
+            rendered.classList.add("my-sr-prompt-text");
+            if (promptEl.isConnected) promptEl.replaceWith(rendered);
+          })
+          .catch((error: unknown) => {
+            console.error(
+              "Не удалось отобразить вопрос учебной карточки.",
+              error
+            );
+            if (promptEl.isConnected) promptEl.setText(promptRaw);
+          });
+      } else {
+        promptEl.setText(promptRaw);
+      }
+    } else {
+      centerBox.createDiv({ cls: "my-sr-prompt-text", text: promptText });
+    }
 
     if (
       this.trainerScope === "english" &&
@@ -1394,7 +1459,12 @@ export class SrTrainerModal extends Modal {
       });
     }
 
-    const ctxGrid = centerBox.createDiv("my-sr-context-grid");
+    const ctxGrid = centerBox.createDiv(
+      "my-sr-context-grid" +
+        (this.trainerScope === "study" && !this.isFlipped
+          ? " my-sr-study-context-grid"
+          : "")
+    );
     if (activeDir.isNew) {
       ctxGrid.createSpan({
         cls: "my-sr-context-chip",
@@ -1460,7 +1530,32 @@ export class SrTrainerModal extends Modal {
         evalEl.style.color = evalRes.color;
       }
 
-      centerBox.createDiv({ cls: "my-sr-answer-text", text: targetAnswer });
+      if (this.trainerScope === "study") {
+        const answerEl = centerBox.createDiv("my-sr-answer-text");
+        if (this.sideRenderComponent) {
+          void renderStudySide(
+            this.app,
+            targetRaw,
+            activeCard.deckPath,
+            this.sideRenderComponent
+          )
+            .then((rendered) => {
+              rendered.classList.add("my-sr-answer-text");
+              if (answerEl.isConnected) answerEl.replaceWith(rendered);
+            })
+            .catch((error: unknown) => {
+              console.error(
+                "Не удалось отобразить ответ учебной карточки.",
+                error
+              );
+              if (answerEl.isConnected) answerEl.setText(targetRaw);
+            });
+        } else {
+          answerEl.setText(targetRaw);
+        }
+      } else {
+        centerBox.createDiv({ cls: "my-sr-answer-text", text: targetAnswer });
+      }
 
       if (
         this.trainerScope === "english" &&
