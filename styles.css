@@ -14,9 +14,6 @@
   overflow: hidden;
 }
 
-/* На телефоне штатная кнопка может находиться вне .modal, в контейнере.
-   Собственная шапка уже содержит доступную кнопку закрытия. */
-.modal-container.my-sr-overlay .modal-close-button,
 .modal-container.my-sr-overlay > .modal-header,
 .modal.my-sr-modal-container > .modal-header,
 .modal.my-sr-modal-container > .modal-title {
@@ -81,9 +78,10 @@
 
 .my-sr-modal .my-sr-scope-bar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: center;
   gap: 6px;
+  padding-right: 34px;
   padding-bottom: 6px;
   border-bottom: 1px solid var(--background-modifier-border);
   flex-shrink: 0;
@@ -102,12 +100,6 @@
   background: var(--interactive-accent);
   border-color: var(--interactive-accent);
   color: var(--text-on-accent);
-}
-
-.my-sr-modal .my-sr-close-btn {
-  width: 44px;
-  padding: 0;
-  color: var(--text-muted);
 }
 
 .my-sr-modal .my-sr-toolbar {
@@ -370,12 +362,6 @@
   background: var(--background-modifier-border);
 }
 
-.my-sr-modal .my-sr-type-wrap {
-  width: 100%;
-  max-width: 480px;
-}
-
-.my-sr-modal input.my-sr-type-input,
 .my-sr-modal input.my-sr-input {
   width: 100%;
   min-width: 0;
@@ -384,16 +370,6 @@
   font-size: 16px;
   border-radius: 9px;
 }
-
-.my-sr-modal .my-sr-type-input {
-  text-align: center;
-}
-
-.my-sr-modal .my-sr-eval-result {
-  font-size: 14px;
-  font-weight: 600;
-}
-
 /* Один пример на всю ширину. Никаких кнопок озвучки рядом с текстом. */
 .my-sr-modal .my-sr-examples-panel {
   display: flex;

@@ -31,11 +31,8 @@ export interface SrTrainerSettings {
   studyAttachmentsFolder: string;
   knowledgeFolder: string;
   diaryFolder: string;
-  englishNewSessionLimit: number;
+englishNewSessionLimit: number;
   studyNewSessionLimit: number;
-  autoSpeakEnglish: boolean;
-  englishTypingMode: boolean;
-  studyTypingMode: boolean;
 }
 
 export const DEFAULT_SETTINGS: SrTrainerSettings = {
@@ -47,9 +44,6 @@ export const DEFAULT_SETTINGS: SrTrainerSettings = {
   diaryFolder: "Ежедневник",
   englishNewSessionLimit: 25,
   studyNewSessionLimit: 30,
-  autoSpeakEnglish: false,
-  englishTypingMode: false,
-  studyTypingMode: false,
 };
 
 export interface BookInfo {

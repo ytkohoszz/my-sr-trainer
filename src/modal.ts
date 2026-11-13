@@ -32,7 +32,6 @@ import {
 import {
   ExampleSentenceItem,
   appendHighlightedSentence,
-  evaluateWrittenAnswer,
   fetchExamples,
   getCachedExamples,
   hasCachedExamples,
@@ -66,11 +65,10 @@ export class SrTrainerModal extends Modal {
 
   savedTodayCount = 0;
 
-  queue: TrainerQueueItem[] = [];
+queue: TrainerQueueItem[] = [];
   currentItem: TrainerQueueItem | null = null;
   isFlipped = false;
   inlineEditOpen = false;
-  typedValue = "";
   examplesKey = "";
   examplesOffset = 0;
 
@@ -184,9 +182,8 @@ export class SrTrainerModal extends Modal {
       this.selectedStudyDeckPath = "ALL";
     }
 
-    this.rebuildQueue();
+this.rebuildQueue();
     this.render();
-    this.triggerAutoSpeakIfNeeded();
   }
 
   private getActiveCardsPool(): SrCard[] {
@@ -313,10 +310,9 @@ export class SrTrainerModal extends Modal {
       }
     }
 
-    this.currentItem = this.queue.shift() || null;
+this.currentItem = this.queue.shift() || null;
     this.isFlipped = false;
     this.inlineEditOpen = false;
-    this.typedValue = "";
     this.examplesKey = "";
     this.examplesOffset = 0;
   }
@@ -341,24 +337,6 @@ export class SrTrainerModal extends Modal {
       this.currentItem = this.queue.shift() || null;
     }
     return { card: null, dir: null };
-  }
-
-  private isTypingModeEnabled(): boolean {
-    return this.trainerScope === "english"
-      ? this.plugin.settings.englishTypingMode
-      : this.plugin.settings.studyTypingMode;
-  }
-
-  private triggerAutoSpeakIfNeeded() {
-    if (
-      this.trainerScope === "english" &&
-      this.plugin.settings.autoSpeakEnglish &&
-      this.currentItem &&
-      this.currentItem.dirIndex === 0
-    ) {
-      const { card } = this.getCurrentCardAndDirection();
-      if (card) speakEnglishText(card.question);
-    }
   }
 
   private openBookInEpubReader(epubPath: string | null, cfi: string | null) {
@@ -424,16 +402,9 @@ export class SrTrainerModal extends Modal {
     }, 120);
   }
 
-  private doFlipCard() {
+private doFlipCard() {
     if (this.isFlipped) return;
     this.isFlipped = true;
-    if (
-      this.trainerScope === "english" &&
-      this.plugin.settings.autoSpeakEnglish
-    ) {
-      const { card } = this.getCurrentCardAndDirection();
-      if (card) speakEnglishText(card.question);
-    }
     this.render();
   }
 
@@ -532,14 +503,12 @@ export class SrTrainerModal extends Modal {
         this.sessionCorrect++;
       }
 
-      this.currentItem = this.queue.shift() || null;
+this.currentItem = this.queue.shift() || null;
       this.isFlipped = false;
       this.inlineEditOpen = false;
-      this.typedValue = "";
       this.examplesKey = "";
 
       this.render();
-      this.triggerAutoSpeakIfNeeded();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       new Notice("Ошибка сохранения ответа: " + msg);
@@ -765,7 +734,7 @@ export class SrTrainerModal extends Modal {
 
     const todayISO = getTodayISO();
 
-    // 1. Верхняя панель: вкладки 🇬🇧 Английский | 🎓 Учёба + кнопка закрытия ✕
+// 1. Верхняя панель: вкладки 🇬🇧 Английский | 🎓 Учёба
     const scopeBar = contentEl.createDiv("my-sr-scope-bar");
     const scopes: Array<{ id: TrainerScope; label: string }> = [
       {
@@ -791,20 +760,8 @@ export class SrTrainerModal extends Modal {
         this.trainerScope = sc.id;
         this.rebuildQueue();
         this.render();
-        this.triggerAutoSpeakIfNeeded();
       };
     }
-
-    const closeModalBtn = scopeBar.createEl("button", {
-      cls: "my-sr-close-btn",
-      text: "✕",
-      attr: {
-        type: "button",
-        title: "Закрыть тренажёр (Esc)",
-        "aria-label": "Закрыть тренажёр",
-      },
-    });
-    closeModalBtn.onclick = () => this.safeClose();
 
     // 2. Панель фильтров и инструментов
     const toolbar = contentEl.createDiv("my-sr-toolbar");
@@ -843,7 +800,6 @@ export class SrTrainerModal extends Modal {
         }
         this.rebuildQueue();
         this.render();
-        this.triggerAutoSpeakIfNeeded();
       };
 
       if (this.englishMode === "BOOK") {
@@ -873,7 +829,6 @@ export class SrTrainerModal extends Modal {
           this.selectedBookPath = bookSel.value;
           this.rebuildQueue();
           this.render();
-          this.triggerAutoSpeakIfNeeded();
         };
       }
     } else {
@@ -948,99 +903,10 @@ export class SrTrainerModal extends Modal {
       this.directionFilter = dirSel.value as DirectionFilter;
       this.rebuildQueue();
       this.render();
-      this.triggerAutoSpeakIfNeeded();
-    };
-
-    const toolsWrap = toolbar.createDiv("my-sr-tools");
-
-    const activeCardForTyping = this.getCurrentCardAndDirection().card;
-    const hasStudyMedia =
-      this.trainerScope === "study" &&
-      Boolean(
-        activeCardForTyping &&
-          [activeCardForTyping.question, activeCardForTyping.answer].some(
-            (side, index) => {
-              const type =
-                index === 0
-                  ? activeCardForTyping.questionType
-                  : activeCardForTyping.answerType;
-              return ["image", "formula", "mixed"].includes(
-                type || classifyCardSide(side)
-              );
-            }
-          )
-      );
-    const typingOn = this.isTypingModeEnabled() && !hasStudyMedia;
-    const typingBtn = toolsWrap.createEl("button", {
-      cls: "my-sr-chip-btn" + (typingOn ? " is-active" : ""),
-      text: hasStudyMedia ? "⌨️ Ввод недоступен" : "⌨️ Ввод",
-      attr: {
-        type: "button",
-        title: hasStudyMedia
-          ? "Письменный ввод недоступен для карточек с формулами или изображениями"
-          : "Письменная проверка ответа перед переворотом",
-        "aria-label": "Письменная проверка",
-        "aria-pressed": String(typingOn),
-      },
-    });
-    typingBtn.disabled = hasStudyMedia;
-    typingBtn.onclick = () => {
-      if (this.trainerScope === "english") {
-        this.plugin.settings.englishTypingMode = !typingOn;
-      } else {
-        this.plugin.settings.studyTypingMode = !typingOn;
-      }
-      this.plugin.requestSaveSettings();
-      this.render();
-    };
-
-    if (this.trainerScope === "english") {
-      const ttsOn = this.plugin.settings.autoSpeakEnglish;
-      const ttsBtn = toolsWrap.createEl("button", {
-        cls: "my-sr-chip-btn" + (ttsOn ? " is-active" : ""),
-        text: "🔊 Авто",
-        attr: {
-          type: "button",
-          title: "Автоматически озвучивать английское слово",
-          "aria-pressed": String(ttsOn),
-        },
-      });
-      ttsBtn.onclick = () => {
-        this.plugin.settings.autoSpeakEnglish = !ttsOn;
-        this.plugin.requestSaveSettings();
-        this.render();
-      };
-    }
-
-    const shuffleBtn = toolsWrap.createEl("button", {
-      cls: "my-sr-chip-btn",
-      text: "🔀",
-      attr: {
-        type: "button",
-        title: "Перемешать очередь карточек",
-        "aria-label": "Перемешать очередь",
-      },
-    });
-    shuffleBtn.onclick = () => {
-      if (this.currentItem) this.queue.push(this.currentItem);
-      for (let i = this.queue.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        const temp = this.queue[i];
-        const swap = this.queue[j];
-        if (temp && swap) {
-          this.queue[i] = swap;
-          this.queue[j] = temp;
-        }
-      }
-      this.currentItem = this.queue.shift() || null;
-      this.isFlipped = false;
-      this.typedValue = "";
-      this.examplesKey = "";
-      this.render();
-      this.triggerAutoSpeakIfNeeded();
     };
 
     if (this.undoStack.length > 0) {
+      const toolsWrap = toolbar.createDiv("my-sr-tools");
       const undoBtn = toolsWrap.createEl("button", {
         cls: "my-sr-chip-btn my-sr-undo-btn",
         text: `↶ (${this.undoStack.length})`,
@@ -1105,11 +971,10 @@ export class SrTrainerModal extends Modal {
             text: `✨ Учить новые (${newLeft})`,
             attr: { type: "button" },
           });
-          moreNewBtn.onclick = () => {
+moreNewBtn.onclick = () => {
             this.englishMode = "NEW_ONLY";
             this.rebuildQueue();
             this.render();
-            this.triggerAutoSpeakIfNeeded();
           };
         }
         const hardBtn = nextRow.createEl("button", {
@@ -1121,7 +986,6 @@ export class SrTrainerModal extends Modal {
           this.englishMode = "HARD";
           this.rebuildQueue();
           this.render();
-          this.triggerAutoSpeakIfNeeded();
         };
       } else {
         const cramBtn = nextRow.createEl("button", {
@@ -1403,12 +1267,11 @@ export class SrTrainerModal extends Modal {
       };
     }
 
-    // Центральная область вопроса и ответа
+// Центральная область вопроса и ответа
     const centerBox = flashcardEl.createDiv(
-      "my-sr-center" +
-        (!this.isFlipped && !typingOn ? " is-clickable" : "")
+      "my-sr-center" + (!this.isFlipped ? " is-clickable" : "")
     );
-    if (!this.isFlipped && !typingOn) {
+    if (!this.isFlipped) {
       centerBox.onclick = () => this.doFlipCard();
     }
 
@@ -1476,59 +1339,15 @@ export class SrTrainerModal extends Modal {
         text: `Инт.: ${activeDir.interval} дн. · Ease: ${activeDir.ease}% · План: ${formatShortDateRU(activeDir.dateStr)}`,
       });
     }
-    if (this.sessionDone > 0) {
+if (this.sessionDone > 0) {
       ctxGrid.createSpan({
         cls: "my-sr-context-chip",
         text: `🎯 Точность: ${accuracyPct}%${this.sessionAgain > 0 ? ` · Повторов: ${this.sessionAgain}` : ""}`,
       });
     }
 
-    if (typingOn && !this.isFlipped) {
-      const typeWrap = centerBox.createDiv("my-sr-type-wrap");
-      const typeInp = typeWrap.createEl("input", {
-        cls: "my-sr-type-input",
-        attr: {
-          type: "text",
-          placeholder:
-            this.trainerScope === "english"
-              ? isForward
-                ? "Впиши перевод на русском и нажми Enter…"
-                : "Впиши слово на английском и нажми Enter…"
-              : "Впиши ответ и нажми Enter…",
-          value: this.typedValue,
-        },
-      });
-      typeInp.onclick = (ev) => ev.stopPropagation();
-      typeInp.oninput = () => {
-        this.typedValue = typeInp.value;
-      };
-      typeInp.onkeydown = (ev) => {
-        if (ev.key === "Enter") {
-          ev.preventDefault();
-          ev.stopPropagation();
-          this.doFlipCard();
-        }
-      };
-      window.setTimeout(() => {
-        if (typeInp.isConnected) typeInp.focus();
-      }, 20);
-    }
-
     if (this.isFlipped) {
       centerBox.createDiv("my-sr-divider");
-
-      if (typingOn && this.typedValue.trim() !== "") {
-        const evalRes = evaluateWrittenAnswer(
-          this.typedValue,
-          targetAnswer,
-          this.trainerScope === "english"
-        );
-        const evalEl = centerBox.createDiv({
-          cls: "my-sr-eval-result",
-          text: evalRes.label,
-        });
-        evalEl.style.color = evalRes.color;
-      }
 
       if (this.trainerScope === "study") {
         const answerEl = centerBox.createDiv("my-sr-answer-text");

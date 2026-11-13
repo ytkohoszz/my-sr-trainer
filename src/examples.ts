@@ -27,13 +27,6 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
 export const normStr = (s: string): string =>
   String(s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 
-export const normText = (s: string): string =>
-  String(s ?? "")
-    .toLowerCase()
-    .replace(/[“”"«»'.,!?;:()\[\]]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
 export const cleanExample = (s: string): string =>
   String(s ?? "")
     .replace(/\s+/g, " ")
@@ -230,88 +223,7 @@ export function appendHighlightedSentence(
     }
     last = m.index + matchedWord.length;
   }
-  if (last < sentence.length) {
+if (last < sentence.length) {
     parent.createSpan({ text: sentence.slice(last) });
   }
-}
-
-export function evaluateWrittenAnswer(
-  userRaw: string,
-  targetRaw: string,
-  isEnglishScope: boolean
-): { pct: number; label: string; color: string } {
-  const uNorm = normText(userRaw);
-  const tNorm = normText(targetRaw);
-  if (!uNorm) return { pct: 0, label: "", color: "var(--text-muted)" };
-
-  if (isEnglishScope) {
-    const expectedVariants = targetRaw
-      .split(/[;,/]/)
-      .map((s) => normText(s))
-      .filter(Boolean);
-    const isExact = expectedVariants.includes(uNorm) || tNorm === uNorm;
-    return {
-      pct: isExact ? 100 : 0,
-      label: isExact
-        ? `✓ Точно: «${userRaw.trim()}»`
-        : `Твой ввод: «${userRaw.trim()}»`,
-      color: isExact ? "#4aab80" : "#e5a158",
-    };
-  }
-
-  if (uNorm === tNorm) {
-    return {
-      pct: 100,
-      label: `✓ Точное совпадение (100%) · «${userRaw.trim()}»`,
-      color: "#4aab80",
-    };
-  }
-
-  const stopWords = new Set([
-    "и", "в", "на", "с", "по", "для", "от", "к", "из", "у", "о",
-    "это", "как", "что", "или", "не", "а", "но", "при",
-    "the", "a", "an", "of", "to", "in", "is", "are",
-  ]);
-  const targetTokens = tNorm
-    .split(" ")
-    .filter((w) => w.length > 1 && !stopWords.has(w));
-
-  if (!targetTokens.length) {
-    const ok = tNorm.includes(uNorm) || uNorm.includes(tNorm);
-    return {
-      pct: ok ? 100 : 0,
-      label: ok ? "✓ Совпадает" : `Твой ответ: «${userRaw.trim()}»`,
-      color: ok ? "#4aab80" : "#d85b57",
-    };
-  }
-
-  const userTokens = uNorm.split(" ").filter(Boolean);
-  let matched = 0;
-  for (const tw of targetTokens) {
-    const stem =
-      tw.length > 5 ? tw.slice(0, -2) : tw.length > 3 ? tw.slice(0, -1) : tw;
-    if (userTokens.some((uw) => uw.startsWith(stem) || tw.startsWith(uw))) {
-      matched++;
-    }
-  }
-  const pct = Math.round((matched / targetTokens.length) * 100);
-  if (pct >= 85) {
-    return {
-      pct,
-      label: `✓ Отлично (${pct}% ключевых слов) · «${userRaw.trim()}»`,
-      color: "#4aab80",
-    };
-  }
-  if (pct >= 45) {
-    return {
-      pct,
-      label: `◐ Частично верно (${pct}% ключевых слов) · «${userRaw.trim()}»`,
-      color: "#e5a158",
-    };
-  }
-  return {
-    pct,
-    label: `✕ Мало совпадений (${pct}%) · «${userRaw.trim()}»`,
-    color: "#d85b57",
-  };
 }
