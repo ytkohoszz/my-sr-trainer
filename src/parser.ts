@@ -929,7 +929,7 @@ export function computeGradeOptions(
       interval: againInterval,
       ease: againEase,
       nextDateISO: addDaysToISO(todayISO, againInterval),
-      color: "#d85b57",
+      color: "var(--color-red, #d85b57)",
       requeue: true,
     },
     hard: {
@@ -940,7 +940,7 @@ export function computeGradeOptions(
       interval: hardInterval,
       ease: hardEase,
       nextDateISO: addDaysToISO(todayISO, hardInterval),
-      color: "#e5a158",
+      color: "var(--color-orange, #e5a158)",
       requeue: false,
     },
     good: {
@@ -951,7 +951,7 @@ export function computeGradeOptions(
       interval: goodInterval,
       ease: goodEase,
       nextDateISO: addDaysToISO(todayISO, goodInterval),
-      color: "#599ed6",
+      color: "var(--color-blue, #599ed6)",
       requeue: false,
     },
     easy: {
@@ -962,7 +962,7 @@ export function computeGradeOptions(
       interval: easyInterval,
       ease: easyEase,
       nextDateISO: addDaysToISO(todayISO, easyInterval),
-      color: "#4aab80",
+      color: "var(--color-green, #4aab80)",
       requeue: false,
     },
   };

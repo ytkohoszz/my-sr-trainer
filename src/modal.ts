@@ -935,9 +935,9 @@ this.currentItem = this.queue.shift() || null;
     const renderCounters = (parent: HTMLElement) => {
       const row = parent.createDiv("my-sr-counter-row");
       const items = [
-        { label: "Осталось", val: remainingCount, color: "#d69852" },
-        { label: "Пройдено", val: this.sessionDone, color: "#599ed6" },
-        { label: "За день", val: todayReviewedCount, color: "#4aab80" },
+        { label: "Осталось", val: remainingCount, color: "var(--color-yellow, #d69852)" },
+        { label: "Пройдено", val: this.sessionDone, color: "var(--color-blue, #599ed6)" },
+        { label: "За день", val: todayReviewedCount, color: "var(--color-green, #4aab80)" },
       ];
       for (const it of items) {
         const rect = row.createDiv("my-sr-counter-rect");
@@ -1016,17 +1016,17 @@ moreNewBtn.onclick = () => {
     const isForward = activeDir.dirIndex === 0;
     const isRelearning = Boolean(this.currentItem?.isRelearning);
     const borderCol = isRelearning
-      ? "#d85b57"
+      ? "var(--color-red, #d85b57)"
       : activeDir.isNew
-        ? "#599ed6"
+        ? "var(--color-blue, #599ed6)"
         : activeDir.interval >= MATURE_DAYS
-          ? "#4aab80"
+          ? "var(--color-green, #4aab80)"
           : this.trainerScope === "english"
-            ? "#e5a158"
-            : "#9c83e8";
+            ? "var(--color-orange, #e5a158)"
+            : "var(--color-purple, #9c83e8)";
 
     const flashcardEl = contentEl.createDiv("my-sr-flashcard");
-    flashcardEl.style.borderTop = `3px solid ${borderCol}`;
+    flashcardEl.style.setProperty("--sr-card-accent", borderCol);
 
     const topSection = flashcardEl.createDiv("my-sr-flashcard-top");
     renderCounters(topSection);
