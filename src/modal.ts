@@ -19,7 +19,6 @@ import {
 import {
   computeGradeOptions,
   enqueueDiskWrite,
-  formatShortDateRU,
   getTodayISO,
   loadBooksRegistry,
   loadEnglishWordsData,
@@ -905,16 +904,6 @@ this.currentItem = this.queue.shift() || null;
       this.render();
     };
 
-    if (this.undoStack.length > 0) {
-      const toolsWrap = toolbar.createDiv("my-sr-tools");
-      const undoBtn = toolsWrap.createEl("button", {
-        cls: "my-sr-chip-btn my-sr-undo-btn",
-        text: `↶ (${this.undoStack.length})`,
-        attr: { type: "button", title: "Отменить последнюю оценку" },
-      });
-      undoBtn.onclick = () => void this.handleUndo();
-    }
-
     // 3. Счётчики сессии
     const { card: activeCard, dir: activeDir } =
       this.getCurrentCardAndDirection();
@@ -935,13 +924,12 @@ this.currentItem = this.queue.shift() || null;
     const renderCounters = (parent: HTMLElement) => {
       const row = parent.createDiv("my-sr-counter-row");
       const items = [
-        { label: "Осталось", val: remainingCount, color: "var(--color-yellow, #d69852)" },
-        { label: "Пройдено", val: this.sessionDone, color: "var(--color-blue, #599ed6)" },
-        { label: "За день", val: todayReviewedCount, color: "var(--color-green, #4aab80)" },
+        { label: "Осталось", val: remainingCount },
+        { label: "Пройдено", val: this.sessionDone },
+        { label: "За день", val: todayReviewedCount },
       ];
       for (const it of items) {
         const rect = row.createDiv("my-sr-counter-rect");
-        rect.style.setProperty("--cnt-color", it.color);
         rect.createSpan({ cls: "my-sr-counter-label", text: it.label });
         rect.createSpan({ cls: "my-sr-counter-val", text: String(it.val) });
       }
@@ -1015,18 +1003,8 @@ moreNewBtn.onclick = () => {
     // 5. Активная карточка
     const isForward = activeDir.dirIndex === 0;
     const isRelearning = Boolean(this.currentItem?.isRelearning);
-    const borderCol = isRelearning
-      ? "var(--color-red, #d85b57)"
-      : activeDir.isNew
-        ? "var(--color-blue, #599ed6)"
-        : activeDir.interval >= MATURE_DAYS
-          ? "var(--color-green, #4aab80)"
-          : this.trainerScope === "english"
-            ? "var(--color-orange, #e5a158)"
-            : "var(--color-purple, #9c83e8)";
 
     const flashcardEl = contentEl.createDiv("my-sr-flashcard");
-    flashcardEl.style.setProperty("--sr-card-accent", borderCol);
 
     const topSection = flashcardEl.createDiv("my-sr-flashcard-top");
     renderCounters(topSection);
@@ -1039,19 +1017,15 @@ moreNewBtn.onclick = () => {
     const metaRow = topSection.createDiv("my-sr-meta-row");
     const metaLeft = metaRow.createDiv("my-sr-meta-left");
 
-    if (this.trainerScope === "english") {
-      metaLeft.createSpan({
-        cls: "my-sr-pill",
-        text: isForward ? "🇬🇧 EN → RU" : "🇷🇺 RU → EN",
-      });
+    const stageLabel = isRelearning
+      ? "↻ Повтор"
+      : activeDir.isNew
+        ? "✨ Новая"
+        : activeDir.interval >= MATURE_DAYS
+          ? "🌲 Закреплена"
+          : "🌱 В изучении";
 
-      const stageLabel = isRelearning
-        ? "↻ Повтор"
-        : activeDir.isNew
-          ? "✨ Новая"
-          : activeDir.interval >= MATURE_DAYS
-            ? "🌲 Закреплена"
-            : "🌱 В изучении";
+    if (this.trainerScope === "english") {
       metaLeft.createSpan({ cls: "my-sr-pill", text: stageLabel });
 
       if (activeCard.resolvedBook) {
@@ -1079,21 +1053,19 @@ moreNewBtn.onclick = () => {
         cls: "my-sr-pill",
         text: `📚 ${activeCard.deckTitle}`,
       });
+      metaLeft.createSpan({ cls: "my-sr-pill", text: stageLabel });
+    }
+
+    if (this.sessionDone > 0) {
       metaLeft.createSpan({
-        cls: "my-sr-pill",
-        text: activeCard.isBidirectional
-          ? isForward
-            ? "⇄ Прямой"
-            : "⇄ Обратный"
-          : "→ Вопрос",
-      });
-      metaLeft.createSpan({
-        cls: "my-sr-pill",
-        text: isRelearning
-          ? "↻ Повтор"
-          : activeDir.isNew
-            ? "✨ Новая"
-            : `инт. ${activeDir.interval} дн. · Ease ${activeDir.ease}%`,
+        cls: "my-sr-pill my-sr-pill-accuracy",
+        text: `Точность ${accuracyPct}%`,
+        attr: {
+          title:
+            this.sessionAgain > 0
+              ? `Точность за сессию (повторов: ${this.sessionAgain})`
+              : "Точность за сессию",
+        },
       });
     }
 
@@ -1319,30 +1291,6 @@ moreNewBtn.onclick = () => {
       centerBox.createDiv({
         cls: "my-sr-example-text",
         text: activeCard.exampleOrHint,
-      });
-    }
-
-    const ctxGrid = centerBox.createDiv(
-      "my-sr-context-grid" +
-        (this.trainerScope === "study" && !this.isFlipped
-          ? " my-sr-study-context-grid"
-          : "")
-    );
-    if (activeDir.isNew) {
-      ctxGrid.createSpan({
-        cls: "my-sr-context-chip",
-        text: "Показ: первый · База Ease 250%",
-      });
-    } else {
-      ctxGrid.createSpan({
-        cls: "my-sr-context-chip",
-        text: `Инт.: ${activeDir.interval} дн. · Ease: ${activeDir.ease}% · План: ${formatShortDateRU(activeDir.dateStr)}`,
-      });
-    }
-if (this.sessionDone > 0) {
-      ctxGrid.createSpan({
-        cls: "my-sr-context-chip",
-        text: `🎯 Точность: ${accuracyPct}%${this.sessionAgain > 0 ? ` · Повторов: ${this.sessionAgain}` : ""}`,
       });
     }
 

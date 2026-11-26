@@ -140,7 +140,7 @@
   font-weight: var(--font-semibold, 600);
 }
 
-/* Панель фильтров и инструментов */
+/* Панель фильтров */
 .my-sr-modal .my-sr-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -190,14 +190,6 @@
   flex: 1 1 140px;
 }
 
-.my-sr-modal .my-sr-tools {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
 /* Чипы и кнопки-переключатели */
 .my-sr-modal button.my-sr-chip-btn,
 .my-sr-modal button.my-sr-card-tool-btn {
@@ -221,12 +213,6 @@
   box-shadow: var(--glass-base, none), inset 0 0 0 1px var(--color-accent-3, var(--interactive-accent));
 }
 
-.my-sr-modal button.my-sr-undo-btn {
-  color: var(--color-orange, #e5a158);
-  background: color-mix(in oklab, var(--color-orange, #e5a158) 12%, var(--background-primary));
-  box-shadow: inset 0 0 0 0.5px color-mix(in oklab, var(--color-orange, #e5a158) 45%, transparent);
-}
-
 /* Главная карточка — островок Уровня 1 */
 .my-sr-modal .my-sr-flashcard {
   display: flex;
@@ -242,7 +228,6 @@
   background: var(--trans-faint-05, var(--background-secondary));
   box-shadow:
     var(--glass-base-m, none),
-    inset 0 2px 0 0 color-mix(in oklab, var(--sr-card-accent, var(--interactive-accent)) 85%, transparent),
     0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)),
     var(--shadow-setting-items, none);
   overflow-x: hidden;
@@ -255,13 +240,6 @@
   display: none;
 }
 
-.my-sr-modal .my-sr-flashcard.is-done-card {
-  box-shadow:
-    var(--glass-base-m, none),
-    0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)),
-    var(--shadow-setting-items, none);
-}
-
 .my-sr-modal .my-sr-flashcard-top {
   display: flex;
   flex-direction: column;
@@ -270,7 +248,7 @@
   min-width: 0;
 }
 
-/* Счётчики сессии — вложенные подблоки Уровня 2 */
+/* Счётчики сессии — вложенные подблоки Уровня 2 (монохром) */
 .my-sr-modal .my-sr-counter-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -289,9 +267,7 @@
   border-radius: var(--radius-sm, 10px);
   -electron-corner-smoothing: var(--corner-smoothing, 60%);
   background: var(--background-primary);
-  box-shadow:
-    var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border))),
-    inset 2.5px 0 0 0 color-mix(in oklab, var(--cnt-color, var(--interactive-accent)) 85%, transparent);
+  box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
 }
 
 .my-sr-modal .my-sr-counter-label {
@@ -358,6 +334,10 @@
   overflow-wrap: anywhere;
 }
 
+.my-sr-modal .my-sr-pill-accuracy {
+  font-variant-numeric: tabular-nums;
+}
+
 .my-sr-modal .my-sr-pill-clickable {
   min-height: 30px;
   color: var(--color-orange, #e5a158);
@@ -380,7 +360,7 @@
   flex: 1 0 auto;
   min-width: 0;
   min-height: 180px;
-  gap: 14px;
+  gap: 16px;
   padding: 20px 10px;
   text-align: center;
 }
@@ -398,26 +378,26 @@
   width: 100%;
   max-width: 720px;
   font-weight: var(--font-semibold, 600);
-  line-height: 1.25;
+  line-height: 1.24;
   overflow-wrap: anywhere;
 }
 
 .my-sr-modal .my-sr-prompt-text {
   color: var(--color-base-100, var(--text-normal));
-  font-size: 34px;
+  font-size: 40px;
   font-variation-settings: "opsz" 28;
 }
 
 .my-sr-modal .my-sr-answer-text {
   color: var(--color-green, #4aab80);
-  font-size: 28px;
+  font-size: 32px;
   font-variation-settings: "opsz" 26;
 }
 
 .my-sr-modal .my-sr-example-text {
   max-width: 660px;
   color: var(--icon-color, var(--text-muted));
-  font-size: 15px;
+  font-size: 15.5px;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
@@ -426,34 +406,9 @@
   max-width: 100%;
 }
 
-.my-sr-modal .my-sr-context-grid {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
-  max-width: 100%;
-}
-
-.my-sr-modal .my-sr-study-context-grid {
-  margin-top: 0;
-}
-
 .my-sr-modal .my-sr-center .my-sr-prompt-text > p,
 .my-sr-modal .my-sr-center .my-sr-answer-text > p {
   margin-block: 0;
-}
-
-.my-sr-modal .my-sr-context-chip {
-  padding: 4px 10px;
-  border: none;
-  border-radius: var(--radius-xs, 6px);
-  background: var(--background-primary);
-  box-shadow: 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border));
-  color: var(--text-faint);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
 }
 
 .my-sr-modal .my-sr-divider {
@@ -832,18 +787,16 @@ body.is-tablet .my-sr-modal button.my-sr-flip-btn {
     height: 100% !important;
     min-height: 0 !important;
     margin: 0 !important;
-    padding: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px))
-      max(env(safe-area-inset-right, 0px), var(--safe-area-inset-right, 0px))
-      max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px))
-      max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px)) !important;
+    padding: 0 !important;
     align-items: stretch !important;
     justify-content: stretch !important;
   }
 
   .modal.my-sr-modal-container {
-    position: relative;
-    inset: auto;
-    transform: none;
+    position: relative !important;
+    inset: auto !important;
+    top: 0 !important;
+    transform: none !important;
     flex: 1 1 0;
     width: 100% !important;
     max-width: 100% !important;
@@ -853,17 +806,39 @@ body.is-tablet .my-sr-modal button.my-sr-flip-btn {
     margin: 0 !important;
     border: 0 !important;
     border-radius: 0 !important;
-    padding: 8px 10px !important;
+    padding: calc(max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px)) + 6px)
+      calc(max(env(safe-area-inset-right, 0px), var(--safe-area-inset-right, 0px)) + 12px)
+      calc(max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px)) + 10px)
+      calc(max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px)) + 12px) !important;
+  }
+
+  .modal.my-sr-modal-container .modal-close-button {
+    top: calc(max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px)) + 6px) !important;
+    right: calc(max(env(safe-area-inset-right, 0px), var(--safe-area-inset-right, 0px)) + 12px) !important;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .modal.my-sr-modal-container .modal-content.my-sr-modal {
-    gap: 8px;
+    gap: 10px;
+    padding: 0;
+  }
+
+  .my-sr-modal .my-sr-scope-bar {
+    margin-right: 48px;
+  }
+
+  .my-sr-modal button.my-sr-scope-tab {
+    min-height: 34px;
   }
 
   .my-sr-modal .my-sr-toolbar {
     flex-direction: column;
     align-items: stretch;
-    gap: 6px;
+    gap: 8px;
   }
 
   .my-sr-modal .my-sr-selects {
@@ -871,7 +846,7 @@ body.is-tablet .my-sr-modal button.my-sr-flip-btn {
     grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
     flex: 0 0 auto;
     width: 100%;
-    gap: 6px;
+    gap: 8px;
   }
 
   .my-sr-modal .my-sr-selects select {
@@ -883,44 +858,36 @@ body.is-tablet .my-sr-modal button.my-sr-flip-btn {
     grid-column: 1 / -1;
   }
 
-  .my-sr-modal .my-sr-tools {
-    gap: 4px;
-  }
-
-  .my-sr-modal .my-sr-tools button {
-    flex: 0 0 auto;
-    padding-inline: 10px;
-    font-size: 13px;
-  }
-
   .my-sr-modal .my-sr-flashcard {
     gap: 10px;
-    padding: 10px;
+    padding: 12px;
   }
 
   .my-sr-modal .my-sr-flashcard-top {
-    gap: 6px;
+    gap: 8px;
   }
 
   .my-sr-modal .my-sr-counter-rect {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 4px;
-    min-height: 36px;
-    padding: 5px 8px;
+    justify-content: center;
+    gap: 2px;
+    min-height: 48px;
+    padding: 6px 6px;
     border-radius: var(--radius-s, 8px);
+    text-align: center;
   }
 
   .my-sr-modal .my-sr-counter-label {
-    font-size: 12px;
+    font-size: 11px;
     line-height: 1.2;
     white-space: nowrap;
   }
 
   .my-sr-modal .my-sr-counter-val {
-    font-size: 16px;
-    line-height: 1.2;
+    font-size: 17px;
+    line-height: 1.15;
   }
 
   .my-sr-modal .my-sr-meta-row {
@@ -932,24 +899,24 @@ body.is-tablet .my-sr-modal button.my-sr-flip-btn {
 
   .my-sr-modal .my-sr-meta-left {
     width: auto;
-    gap: 4px;
+    gap: 5px;
   }
 
   .my-sr-modal .my-sr-meta-right {
     width: auto;
     flex-wrap: nowrap;
-    gap: 4px;
+    gap: 5px;
   }
 
   .my-sr-modal .my-sr-meta-left .my-sr-pill {
-    padding: 4px 8px;
+    padding: 5px 9px;
   }
 
   .my-sr-modal button.my-sr-card-tool-btn {
     width: 40px;
     height: 40px;
     padding: 0;
-    font-size: 15px;
+    font-size: 16px;
   }
 
   .my-sr-modal .my-sr-card-tool-btn .my-sr-btn-label {
@@ -958,8 +925,8 @@ body.is-tablet .my-sr-modal button.my-sr-flip-btn {
 
   .my-sr-modal .my-sr-center {
     min-height: 160px;
-    padding: 16px 2px;
-    gap: 10px;
+    padding: 18px 4px;
+    gap: 12px;
   }
 
   .my-sr-modal .has-examples .my-sr-center {
@@ -968,11 +935,11 @@ body.is-tablet .my-sr-modal button.my-sr-flip-btn {
   }
 
   .my-sr-modal .my-sr-prompt-text {
-    font-size: 30px;
+    font-size: 36px;
   }
 
   .my-sr-modal .my-sr-answer-text {
-    font-size: 25px;
+    font-size: 29px;
   }
 
   .my-sr-modal .my-sr-grade-title {
@@ -998,13 +965,6 @@ body.is-tablet .my-sr-modal button.my-sr-flip-btn {
 @media (max-width: 359px) {
   .my-sr-modal button.my-sr-scope-tab {
     font-size: 12px;
-  }
-
-  .my-sr-modal .my-sr-counter-rect {
-    grid-template-columns: minmax(0, 1fr);
-    justify-items: center;
-    gap: 2px;
-    padding: 4px 3px;
   }
 
   .my-sr-modal .my-sr-grade-grid {
