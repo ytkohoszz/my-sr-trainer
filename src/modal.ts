@@ -77,6 +77,12 @@ queue: TrainerQueueItem[] = [];
   undoStack: UndoSnapshot[] = [];
 
   private keyHandler: ((e: KeyboardEvent) => void) | null = null;
+  private modalClickHandler: ((e: MouseEvent) => void) | null = null;
+  private touchStartHandler: ((e: TouchEvent) => void) | null = null;
+  private touchEndHandler: ((e: TouchEvent) => void) | null = null;
+  private touchStartY: number | null = null;
+  private touchStartX: number | null = null;
+  private touchStartedInScrollable = false;
   private isGrading = false;
   private sideRenderComponent: Component | null = null;
 
@@ -135,6 +141,48 @@ queue: TrainerQueueItem[] = [];
     this.keyHandler = (e: KeyboardEvent) => this.handleKeyDown(e);
     window.addEventListener("keydown", this.keyHandler);
 
+    this.modalClickHandler = (e: MouseEvent) => {
+      if (e.target === this.modalEl) {
+        this.safeClose();
+      }
+    };
+    this.modalEl.addEventListener("click", this.modalClickHandler);
+
+    this.touchStartHandler = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      if (!touch) return;
+      const target = e.target as HTMLElement | null;
+      const card = target?.closest(".my-sr-flashcard") as HTMLElement | null;
+      this.touchStartedInScrollable = Boolean(card && card.scrollTop > 2);
+      this.touchStartY = touch.clientY;
+      this.touchStartX = touch.clientX;
+    };
+
+    this.touchEndHandler = (e: TouchEvent) => {
+      if (this.touchStartY === null || this.touchStartX === null) return;
+      const touch = e.changedTouches[0];
+      const startY = this.touchStartY;
+      const startX = this.touchStartX;
+      const inScroll = this.touchStartedInScrollable;
+      this.touchStartY = null;
+      this.touchStartX = null;
+      this.touchStartedInScrollable = false;
+
+      if (!touch || inScroll) return;
+      const dy = touch.clientY - startY;
+      const dx = Math.abs(touch.clientX - startX);
+      if (dy > 80 && dy > dx * 1.5) {
+        this.safeClose();
+      }
+    };
+
+    this.modalEl.addEventListener("touchstart", this.touchStartHandler, {
+      passive: true,
+    });
+    this.modalEl.addEventListener("touchend", this.touchEndHandler, {
+      passive: true,
+    });
+
     await this.reloadAllDataAndRebuildQueue();
   }
 
@@ -142,6 +190,18 @@ queue: TrainerQueueItem[] = [];
     if (this.keyHandler) {
       window.removeEventListener("keydown", this.keyHandler);
       this.keyHandler = null;
+    }
+    if (this.modalClickHandler) {
+      this.modalEl.removeEventListener("click", this.modalClickHandler);
+      this.modalClickHandler = null;
+    }
+    if (this.touchStartHandler) {
+      this.modalEl.removeEventListener("touchstart", this.touchStartHandler);
+      this.touchStartHandler = null;
+    }
+    if (this.touchEndHandler) {
+      this.modalEl.removeEventListener("touchend", this.touchEndHandler);
+      this.touchEndHandler = null;
     }
     this.sideRenderComponent?.unload();
     this.sideRenderComponent = null;

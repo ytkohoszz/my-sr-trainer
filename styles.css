@@ -21,7 +21,9 @@
 
 .modal-container.my-sr-overlay > .modal-header,
 .modal.my-sr-modal-container > .modal-header,
-.modal.my-sr-modal-container > .modal-title {
+.modal.my-sr-modal-container > .modal-title,
+.modal.my-sr-modal-container > .modal-close-button,
+.modal.my-sr-modal-container .modal-close-button {
   display: none !important;
 }
 
@@ -106,7 +108,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: center;
   gap: 2px;
-  margin-right: 36px;
+  margin-right: 0;
   padding: 3px;
   border-radius: var(--radius-xl, 20px);
   -electron-corner-smoothing: var(--corner-smoothing, 60%);
@@ -779,9 +781,12 @@ body.is-tablet .my-sr-modal button.my-sr-flip-btn {
 }
 
 @media (max-width: 640px) {
+  body.is-phone .modal-container.my-sr-overlay,
+  body.is-mobile .modal-container.my-sr-overlay,
   .modal-container.my-sr-overlay {
     position: fixed !important;
     inset: 0 !important;
+    top: 0 !important;
     box-sizing: border-box !important;
     width: 100% !important;
     height: 100% !important;
@@ -792,6 +797,8 @@ body.is-tablet .my-sr-modal button.my-sr-flip-btn {
     justify-content: stretch !important;
   }
 
+  body.is-phone .modal.my-sr-modal-container,
+  body.is-mobile .modal.my-sr-modal-container,
   .modal.my-sr-modal-container {
     position: relative !important;
     inset: auto !important;
@@ -806,29 +813,26 @@ body.is-tablet .my-sr-modal button.my-sr-flip-btn {
     margin: 0 !important;
     border: 0 !important;
     border-radius: 0 !important;
-    padding: calc(max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px)) + 6px)
+    padding: calc(max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px), 48px) + 6px)
       calc(max(env(safe-area-inset-right, 0px), var(--safe-area-inset-right, 0px)) + 12px)
       calc(max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px)) + 10px)
       calc(max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px)) + 12px) !important;
   }
 
-  .modal.my-sr-modal-container .modal-close-button {
-    top: calc(max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px)) + 6px) !important;
-    right: calc(max(env(safe-area-inset-right, 0px), var(--safe-area-inset-right, 0px)) + 12px) !important;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  .modal.my-sr-modal-container::before {
+    display: none !important;
   }
 
+  body.is-phone .modal.my-sr-modal-container .modal-content.my-sr-modal,
+  body.is-mobile .modal.my-sr-modal-container .modal-content.my-sr-modal,
   .modal.my-sr-modal-container .modal-content.my-sr-modal {
     gap: 10px;
-    padding: 0;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   .my-sr-modal .my-sr-scope-bar {
-    margin-right: 48px;
+    margin-right: 0;
   }
 
   .my-sr-modal button.my-sr-scope-tab {
