@@ -184,6 +184,197 @@ export async function fetchExamples(word: string): Promise<ExampleSentenceItem[]
   return result;
 }
 
+export interface SynonymGroup {
+  partOfSpeech: string;
+  words: string[];
+}
+
+export interface SynonymsResult {
+  groups: SynonymGroup[];
+  sources: string[];
+}
+
+const synonymsCache = new Map<string, SynonymsResult>();
+
+function normalizeSynonymQuery(word: string): string {
+  const clean = normalizeExampleWord(word);
+  return clean.replace(/^to\s+/i, "").trim() || clean;
+}
+
+function normalizePosLabel(raw: unknown): string {
+  const s = String(raw ?? "").trim().toLowerCase();
+  if (s === "n" || s === "noun") return "noun";
+  if (s === "v" || s === "verb") return "verb";
+  if (s === "adj" || s === "adjective") return "adj";
+  if (s === "adv" || s === "adverb") return "adv";
+  return "";
+}
+
+export function hasCachedSynonyms(word: string): boolean {
+  const key = normalizeSynonymQuery(word).toLowerCase();
+  return Boolean(key && synonymsCache.has(key));
+}
+
+export function getCachedSynonyms(word: string): SynonymsResult | undefined {
+  const key = normalizeSynonymQuery(word).toLowerCase();
+  return key ? synonymsCache.get(key) : undefined;
+}
+
+export async function fetchSynonyms(word: string): Promise<SynonymsResult> {
+  const clean = normalizeSynonymQuery(word);
+  if (!clean) throw new Error("пустой запрос");
+
+  const cacheKey = clean.toLowerCase();
+  const cached = synonymsCache.get(cacheKey);
+  if (cached) return cached;
+
+  const MAX_SYNONYMS = 12;
+  const groupsMap = new Map<string, string[]>();
+  const sources = new Set<string>();
+  const seen = new Set<string>([
+    cacheKey,
+    normalizeExampleWord(word).toLowerCase(),
+  ]);
+  let total = 0;
+
+  const pushSynonym = (raw: unknown, posRaw: unknown, source: string) => {
+    if (total >= MAX_SYNONYMS) return;
+    const s = String(raw ?? "").replace(/\s+/g, " ").trim();
+    if (!s || s.length > 40) return;
+    const k = s.toLowerCase();
+    if (seen.has(k)) return;
+    seen.add(k);
+
+    const pos = normalizePosLabel(posRaw);
+    const list = groupsMap.get(pos) ?? [];
+    list.push(s);
+    groupsMap.set(pos, list);
+    sources.add(source);
+    total++;
+  };
+
+  const readJson = (r: { json?: unknown; text: string }): unknown =>
+    typeof r.json === "object" && r.json !== null ? r.json : JSON.parse(r.text);
+
+  let answered = false;
+  let lastErr: unknown = null;
+
+  // 1. Free Dictionary API
+  try {
+    const url =
+      "https://api.dictionaryapi.dev/api/v2/entries/en/" +
+      encodeURIComponent(cacheKey);
+    const r = await withTimeout(
+      requestUrl({ url, headers: DESKTOP_HEADERS, throw: false }),
+      TRANSLATE_TIMEOUT_MS
+    );
+    if (r.status === 200) {
+      answered = true;
+      const data = readJson(r);
+      if (Array.isArray(data)) {
+        for (const entry of data) {
+          const meanings = Array.isArray(
+            (entry as { meanings?: unknown[] })?.meanings
+          )
+            ? (entry as { meanings: unknown[] }).meanings
+            : [];
+          for (const m of meanings) {
+            const pos = (m as { partOfSpeech?: unknown })?.partOfSpeech;
+            const mSyns = Array.isArray((m as { synonyms?: unknown[] })?.synonyms)
+              ? (m as { synonyms: unknown[] }).synonyms
+              : [];
+            for (const syn of mSyns) {
+              pushSynonym(syn, pos, "Free Dictionary");
+            }
+            const defs = Array.isArray(
+              (m as { definitions?: unknown[] })?.definitions
+            )
+              ? (m as { definitions: unknown[] }).definitions
+              : [];
+            for (const d of defs) {
+              const dSyns = Array.isArray(
+                (d as { synonyms?: unknown[] })?.synonyms
+              )
+                ? (d as { synonyms: unknown[] }).synonyms
+                : [];
+              for (const syn of dSyns) {
+                pushSynonym(syn, pos, "Free Dictionary");
+              }
+            }
+          }
+        }
+      }
+    } else if (r.status === 404) {
+      answered = true;
+    } else {
+      lastErr = new Error("словарь: код " + r.status);
+    }
+  } catch (e) {
+    lastErr = e;
+  }
+
+  // 2. Datamuse API (если синонимов меньше 5)
+  if (total < 5) {
+    const encoded = encodeURIComponent(clean);
+    const endpoints = [
+      `https://api.datamuse.com/words?rel_syn=${encoded}&md=p&max=12`,
+      `https://api.datamuse.com/words?ml=${encoded}&md=p&max=10`,
+    ];
+
+    for (let i = 0; i < endpoints.length; i++) {
+      if (i === 1 && total > 0) break;
+      const url = endpoints[i]!;
+      try {
+        const r = await withTimeout(
+          requestUrl({ url, headers: DESKTOP_HEADERS, throw: false }),
+          TRANSLATE_TIMEOUT_MS
+        );
+        if (r.status !== 200) {
+          lastErr = new Error("Datamuse: код " + r.status);
+          continue;
+        }
+        answered = true;
+        const data = readJson(r);
+        if (Array.isArray(data)) {
+          for (const item of data) {
+            const w = (item as { word?: unknown })?.word;
+            const tags = Array.isArray((item as { tags?: unknown[] })?.tags)
+              ? (item as { tags: unknown[] }).tags
+              : [];
+            const posTag = tags.find((t) => normalizePosLabel(t) !== "");
+            pushSynonym(w, posTag, "Datamuse");
+          }
+        }
+      } catch (e) {
+        lastErr = e;
+        break;
+      }
+    }
+  }
+
+  if (!answered && total === 0) {
+    throw lastErr instanceof Error
+      ? lastErr
+      : new Error("сервисы синонимов недоступны");
+  }
+
+  const posOrder = ["noun", "verb", "adj", "adv", ""];
+  const groups: SynonymGroup[] = [];
+  for (const pos of posOrder) {
+    const words = groupsMap.get(pos);
+    if (words && words.length > 0) {
+      groups.push({ partOfSpeech: pos, words });
+    }
+  }
+
+  const result: SynonymsResult = {
+    groups,
+    sources: [...sources],
+  };
+  synonymsCache.set(cacheKey, result);
+  return result;
+}
+
 export function appendHighlightedSentence(
   parent: HTMLElement,
   sentence: string,

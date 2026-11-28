@@ -30,10 +30,14 @@ import {
 } from "./parser";
 import {
   ExampleSentenceItem,
+  SynonymsResult,
   appendHighlightedSentence,
   fetchExamples,
+  fetchSynonyms,
   getCachedExamples,
+  getCachedSynonyms,
   hasCachedExamples,
+  hasCachedSynonyms,
   speakEnglishText,
 } from "./examples";
 import { classifyCardSide } from "./media";
@@ -70,6 +74,7 @@ queue: TrainerQueueItem[] = [];
   inlineEditOpen = false;
   examplesKey = "";
   examplesOffset = 0;
+  synonymsKey = "";
 
   sessionDone = 0;
   sessionCorrect = 0;
@@ -374,6 +379,7 @@ this.currentItem = this.queue.shift() || null;
     this.inlineEditOpen = false;
     this.examplesKey = "";
     this.examplesOffset = 0;
+    this.synonymsKey = "";
   }
 
   private getCurrentCardAndDirection(): {
@@ -469,8 +475,18 @@ private doFlipCard() {
 
   private toggleExamplesForActiveCard(card: SrCard) {
     const exKey = `${card.lineIndex}|${card.question}`;
-    this.examplesKey = this.examplesKey === exKey ? "" : exKey;
+    const next = this.examplesKey === exKey ? "" : exKey;
+    this.examplesKey = next;
     this.examplesOffset = 0;
+    if (next) this.synonymsKey = "";
+    this.render();
+  }
+
+  private toggleSynonymsForActiveCard(card: SrCard) {
+    const synKey = `${card.lineIndex}|${card.question}`;
+    const next = this.synonymsKey === synKey ? "" : synKey;
+    this.synonymsKey = next;
+    if (next) this.examplesKey = "";
     this.render();
   }
 
@@ -566,6 +582,7 @@ this.currentItem = this.queue.shift() || null;
       this.isFlipped = false;
       this.inlineEditOpen = false;
       this.examplesKey = "";
+      this.synonymsKey = "";
 
       this.render();
     } catch (e: unknown) {
@@ -618,6 +635,7 @@ this.currentItem = this.queue.shift() || null;
       };
       this.isFlipped = false;
       this.examplesKey = "";
+      this.synonymsKey = "";
       this.sessionDone = Math.max(0, this.sessionDone - 1);
       if (snap.wasCorrect) {
         this.sessionCorrect = Math.max(0, this.sessionCorrect - 1);
@@ -688,6 +706,12 @@ this.currentItem = this.queue.shift() || null;
     ) {
       e.preventDefault();
       this.toggleExamplesForActiveCard(card);
+    } else if (
+      this.trainerScope === "english" &&
+      (e.key === "s" || e.key === "S" || e.key === "ы" || e.key === "Ы")
+    ) {
+      e.preventDefault();
+      this.toggleSynonymsForActiveCard(card);
     }
   }
 
@@ -762,7 +786,7 @@ this.currentItem = this.queue.shift() || null;
       const sources = [...new Set(shown.map((x) => x.source))].join(", ");
       panel.createDiv({
         cls: "my-sr-examples-foot",
-        text: `Источник: ${sources} · не сохраняется в карточку`,
+        text: `Источник: ${sources}`,
       });
     };
 
@@ -780,6 +804,81 @@ this.currentItem = this.queue.shift() || null;
         const msg = err instanceof Error ? err.message : "нет сети";
         if (panel.isConnected) {
           drawHint(`Не удалось загрузить примеры (${msg}).`, true);
+        }
+      });
+  }
+
+  private renderSynonymsBox(parentEl: HTMLElement, word: string) {
+    const panel = parentEl.createDiv("my-sr-examples-panel my-sr-synonyms-panel");
+
+    const drawHint = (text: string, withRetry: boolean) => {
+      panel.empty();
+      panel.createDiv({ cls: "my-sr-examples-hint", text });
+      if (withRetry) {
+        const retryBtn = panel.createEl("button", {
+          cls: "my-sr-chip-btn",
+          text: "↻ Повторить",
+          attr: { type: "button" },
+        });
+        retryBtn.onclick = () => this.render();
+      }
+    };
+
+    const drawResult = (res: SynonymsResult) => {
+      panel.empty();
+      const head = panel.createDiv("my-sr-examples-head");
+      head.createSpan({
+        cls: "my-sr-examples-title",
+        text: "≈ Синонимы",
+      });
+
+      if (!res.groups.length) {
+        panel.createDiv({
+          cls: "my-sr-examples-hint",
+          text: "Синонимы не найдены.",
+        });
+        return;
+      }
+
+      const groupsEl = panel.createDiv("my-sr-syn-groups");
+      const showPosLabels = res.groups.some((g) => Boolean(g.partOfSpeech));
+
+      for (const group of res.groups) {
+        const row = groupsEl.createDiv("my-sr-syn-group");
+        if (showPosLabels && group.partOfSpeech) {
+          row.createSpan({
+            cls: "my-sr-syn-pos",
+            text: group.partOfSpeech,
+          });
+        }
+        const chips = row.createDiv("my-sr-syn-chips");
+        for (const syn of group.words) {
+          chips.createSpan({ cls: "my-sr-syn-chip", text: syn });
+        }
+      }
+
+      if (res.sources.length) {
+        panel.createDiv({
+          cls: "my-sr-examples-foot",
+          text: `Источник: ${res.sources.join(", ")}`,
+        });
+      }
+    };
+
+    if (hasCachedSynonyms(word)) {
+      drawResult(getCachedSynonyms(word) ?? { groups: [], sources: [] });
+      return;
+    }
+
+    drawHint("Ищу синонимы…", false);
+    fetchSynonyms(word)
+      .then((res) => {
+        if (panel.isConnected) drawResult(res);
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : "нет сети";
+        if (panel.isConnected) {
+          drawHint(`Не удалось загрузить синонимы (${msg}).`, true);
         }
       });
   }
@@ -1134,7 +1233,9 @@ moreNewBtn.onclick = () => {
     const exKey = `${activeCard.lineIndex}|${activeCard.question}`;
     const examplesOpen =
       this.trainerScope === "english" && this.examplesKey === exKey;
-    flashcardEl.toggleClass("has-examples", examplesOpen);
+    const synonymsOpen =
+      this.trainerScope === "english" && this.synonymsKey === exKey;
+    flashcardEl.toggleClass("has-examples", examplesOpen || synonymsOpen);
 
     if (this.trainerScope === "english") {
       const speakBtn = metaRight.createEl("button", {
@@ -1166,6 +1267,22 @@ moreNewBtn.onclick = () => {
       exBtn.onclick = (ev) => {
         ev.stopPropagation();
         this.toggleExamplesForActiveCard(activeCard);
+      };
+
+      const synBtn = metaRight.createEl("button", {
+        cls: "my-sr-card-tool-btn" + (synonymsOpen ? " is-active" : ""),
+        attr: {
+          type: "button",
+          title: "Показать английские синонимы (клавиша S)",
+          "aria-label": "Синонимы",
+          "aria-expanded": String(synonymsOpen),
+        },
+      });
+      synBtn.createSpan({ text: "≈" });
+      synBtn.createSpan({ cls: "my-sr-btn-label", text: " Синонимы" });
+      synBtn.onclick = (ev) => {
+        ev.stopPropagation();
+        this.toggleSynonymsForActiveCard(activeCard);
       };
     }
 
@@ -1410,6 +1527,10 @@ moreNewBtn.onclick = () => {
         activeCard.question,
         !isForward && !this.isFlipped
       );
+    }
+
+    if (synonymsOpen) {
+      this.renderSynonymsBox(flashcardEl, activeCard.question);
     }
 
     // 6. Нижний блок кнопок ответа
