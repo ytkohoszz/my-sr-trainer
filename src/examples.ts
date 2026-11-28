@@ -384,6 +384,222 @@ export async function fetchSynonyms(word: string): Promise<SynonymsResult> {
   return result;
 }
 
+export interface TranscriptionItem {
+  ipa: string;
+  region: string;
+}
+
+export interface TranscriptionResult {
+  items: TranscriptionItem[];
+  sources: string[];
+}
+
+const transcriptionCache = new Map<string, TranscriptionResult>();
+
+function formatIpa(raw: unknown): string {
+  const s = String(raw ?? "").replace(/\s+/g, " ").trim();
+  if (!s) return "";
+  if (
+    (s.startsWith("/") && s.endsWith("/")) ||
+    (s.startsWith("[") && s.endsWith("]"))
+  ) {
+    return s;
+  }
+  return `/${s.replace(/^\/+|\/+$/g, "")}/`;
+}
+
+function stripIpaDelimiters(ipa: string): string {
+  return ipa.replace(/^[/[]+|[/\]]+$/g, "").trim();
+}
+
+function detectPhoneticRegion(audioRaw: unknown): string {
+  const a = String(audioRaw ?? "").toLowerCase();
+  if (!a) return "";
+  if (/[-_/]us(?:\.|[-_/]|$)/.test(a)) return "US";
+  if (/[-_/]uk(?:\.|[-_/]|$)/.test(a)) return "UK";
+  if (/[-_/]au(?:\.|[-_/]|$)/.test(a)) return "AU";
+  return "";
+}
+
+async function fetchSingleTranscription(
+  cleanWord: string
+): Promise<{
+  items: TranscriptionItem[];
+  sources: string[];
+  answered: boolean;
+  lastErr: unknown;
+}> {
+  const query = cleanWord.toLowerCase();
+  const items: TranscriptionItem[] = [];
+  const byIpa = new Map<string, TranscriptionItem>();
+  const sources = new Set<string>();
+
+  const pushIpa = (raw: unknown, region: string, source: string) => {
+    const ipa = formatIpa(raw);
+    if (!ipa) return;
+    const key = stripIpaDelimiters(ipa);
+    if (!key) return;
+    const existing = byIpa.get(key);
+    if (existing) {
+      if (!existing.region && region) existing.region = region;
+      sources.add(source);
+      return;
+    }
+    const item: TranscriptionItem = { ipa, region };
+    byIpa.set(key, item);
+    items.push(item);
+    sources.add(source);
+  };
+
+  const readJson = (r: { json?: unknown; text: string }): unknown =>
+    typeof r.json === "object" && r.json !== null ? r.json : JSON.parse(r.text);
+
+  let answered = false;
+  let lastErr: unknown = null;
+
+  // 1. Free Dictionary API
+  try {
+    const url =
+      "https://api.dictionaryapi.dev/api/v2/entries/en/" +
+      encodeURIComponent(query);
+    const r = await withTimeout(
+      requestUrl({ url, headers: DESKTOP_HEADERS, throw: false }),
+      TRANSLATE_TIMEOUT_MS
+    );
+    if (r.status === 200) {
+      answered = true;
+      const data = readJson(r);
+      if (Array.isArray(data)) {
+        for (const entry of data) {
+          const phonetics = Array.isArray(
+            (entry as { phonetics?: unknown[] })?.phonetics
+          )
+            ? (entry as { phonetics: unknown[] }).phonetics
+            : [];
+          for (const ph of phonetics) {
+            const text = (ph as { text?: unknown })?.text;
+            const audio = (ph as { audio?: unknown })?.audio;
+            pushIpa(text, detectPhoneticRegion(audio), "Free Dictionary");
+          }
+          const mainPh = (entry as { phonetic?: unknown })?.phonetic;
+          if (mainPh) pushIpa(mainPh, "", "Free Dictionary");
+        }
+      }
+    } else if (r.status === 404) {
+      answered = true;
+    } else {
+      lastErr = new Error("словарь: код " + r.status);
+    }
+  } catch (e) {
+    lastErr = e;
+  }
+
+  // 2. Datamuse API (фолбэк на CMUdict IPA)
+  if (items.length === 0) {
+    try {
+      const url =
+        "https://api.datamuse.com/words?sp=" +
+        encodeURIComponent(query) +
+        "&md=r&ipa=1&max=5";
+      const r = await withTimeout(
+        requestUrl({ url, headers: DESKTOP_HEADERS, throw: false }),
+        TRANSLATE_TIMEOUT_MS
+      );
+      if (r.status === 200) {
+        answered = true;
+        const data = readJson(r);
+        if (Array.isArray(data)) {
+          const exact = data.find(
+            (x) =>
+              String((x as { word?: unknown })?.word ?? "").toLowerCase() ===
+              query
+          );
+          const tags = Array.isArray((exact as { tags?: unknown[] })?.tags)
+            ? (exact as { tags: unknown[] }).tags
+            : [];
+          const ipaTag = tags.find(
+            (t): t is string =>
+              typeof t === "string" && t.startsWith("ipa_pron:")
+          );
+          if (ipaTag) {
+            pushIpa(ipaTag.slice("ipa_pron:".length), "US", "Datamuse");
+          }
+        }
+      } else {
+        lastErr = new Error("Datamuse: код " + r.status);
+      }
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+
+  return { items: items.slice(0, 4), sources: [...sources], answered, lastErr };
+}
+
+export function hasCachedTranscription(word: string): boolean {
+  const key = normalizeExampleWord(word).toLowerCase();
+  return Boolean(key && transcriptionCache.has(key));
+}
+
+export function getCachedTranscription(
+  word: string
+): TranscriptionResult | undefined {
+  const key = normalizeExampleWord(word).toLowerCase();
+  return key ? transcriptionCache.get(key) : undefined;
+}
+
+export async function fetchTranscription(
+  word: string
+): Promise<TranscriptionResult> {
+  const clean = normalizeExampleWord(word);
+  if (!clean) throw new Error("пустой запрос");
+
+  const cacheKey = clean.toLowerCase();
+  const cached = transcriptionCache.get(cacheKey);
+  if (cached) return cached;
+
+  const direct = await fetchSingleTranscription(clean);
+  if (direct.items.length > 0) {
+    const res: TranscriptionResult = {
+      items: direct.items,
+      sources: direct.sources,
+    };
+    transcriptionCache.set(cacheKey, res);
+    return res;
+  }
+
+  const tokens = clean.split(/\s+/).filter(Boolean);
+  if (tokens.length > 1 && tokens.length <= 4) {
+    const parts = await Promise.all(
+      tokens.map((tok) => fetchSingleTranscription(tok))
+    );
+    if (parts.every((p) => p.items.length > 0)) {
+      const joined = parts
+        .map((p) => stripIpaDelimiters(p.items[0]!.ipa))
+        .join(" ");
+      const mergedSources = [
+        ...new Set(parts.flatMap((p) => p.sources)),
+      ];
+      const res: TranscriptionResult = {
+        items: [{ ipa: `/${joined}/`, region: "" }],
+        sources: mergedSources,
+      };
+      transcriptionCache.set(cacheKey, res);
+      return res;
+    }
+  }
+
+  if (!direct.answered) {
+    throw direct.lastErr instanceof Error
+      ? direct.lastErr
+      : new Error("сервисы транскрипции недоступны");
+  }
+
+  const emptyRes: TranscriptionResult = { items: [], sources: [] };
+  transcriptionCache.set(cacheKey, emptyRes);
+  return emptyRes;
+}
+
 export interface TranslationResult {
   items: string[];
   sources: string[];

@@ -162,17 +162,6 @@ export interface TrainerQueueItem {
   isRelearning: boolean;
 }
 
-export interface UndoSnapshot {
-  scope: TrainerScope;
-  deckPath: string;
-  rawContent: string;
-  uid: string;
-  lineIndex: number;
-  dirIndex: number;
-  prevDirState: CardDirectionState | null;
-  wasCorrect: boolean;
-}
-
 export interface OpenTrainerParams {
   scope?: TrainerScope;
   mode?: string;

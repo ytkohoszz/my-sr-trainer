@@ -12,7 +12,6 @@ import {
   SrTrainerSettings,
   StudyDeckInfo,
   TrainerScope,
-  UndoSnapshot,
 } from "./types";
 import { cleanExample, cleanLineText, normStr } from "./examples";
 import {
@@ -1006,7 +1005,7 @@ export async function saveCardReviewToDisk(
   card: SrCard,
   dirIndex: number,
   gradeOption: GradeOption
-): Promise<UndoSnapshot> {
+): Promise<void> {
   return enqueueDiskWrite(async () => {
     const fileObj = app.vault.getAbstractFileByPath(card.deckPath);
     if (!(fileObj instanceof TFile)) {
@@ -1026,22 +1025,6 @@ export async function saveCardReviewToDisk(
     if (targetIdx === -1) {
       throw new Error("Строка карточки не найдена в файле.");
     }
-
-    const existingDir = card.directions[dirIndex];
-    const prevDirState: CardDirectionState | null = existingDir
-      ? { ...existingDir }
-      : null;
-
-    const snapshot: UndoSnapshot = {
-      scope: card.scope,
-      deckPath: card.deckPath,
-      rawContent,
-      uid: `${card.deckPath}:${card.lineIndex}:${dirIndex}`,
-      lineIndex: card.lineIndex,
-      dirIndex,
-      prevDirState,
-      wasCorrect: !gradeOption.requeue,
-    };
 
     const srParts: string[] = [];
     for (let d = 0; d < card.expectedDirections; d++) {
@@ -1079,7 +1062,6 @@ export async function saveCardReviewToDisk(
     }
 
     await app.vault.modify(fileObj, lines.join("\n"));
-    return snapshot;
   });
 }
 

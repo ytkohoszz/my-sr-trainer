@@ -14,11 +14,9 @@ import {
   StudyTrainerMode,
   TrainerQueueItem,
   TrainerScope,
-  UndoSnapshot,
 } from "./types";
 import {
   computeGradeOptions,
-  enqueueDiskWrite,
   getTodayISO,
   loadBooksRegistry,
   loadEnglishWordsData,
@@ -31,17 +29,21 @@ import {
 import {
   ExampleSentenceItem,
   SynonymsResult,
+  TranscriptionResult,
   TranslationResult,
   appendHighlightedSentence,
   canMaskWordInSentence,
   fetchExamples,
   fetchSynonyms,
+  fetchTranscription,
   fetchTranslations,
   getCachedExamples,
   getCachedSynonyms,
+  getCachedTranscription,
   getCachedTranslations,
   hasCachedExamples,
   hasCachedSynonyms,
+  hasCachedTranscription,
   hasCachedTranslations,
   lemmatizeEnglish,
   speakEnglishText,
@@ -82,11 +84,11 @@ queue: TrainerQueueItem[] = [];
   examplesKey = "";
   examplesOffset = 0;
   synonymsKey = "";
+  transcriptionKey = "";
 
   sessionDone = 0;
   sessionCorrect = 0;
   sessionAgain = 0;
-  undoStack: UndoSnapshot[] = [];
 
   private keyHandler: ((e: KeyboardEvent) => void) | null = null;
   private modalClickHandler: ((e: MouseEvent) => void) | null = null;
@@ -466,6 +468,7 @@ this.currentItem = this.queue.shift() || null;
     this.examplesKey = "";
     this.examplesOffset = 0;
     this.synonymsKey = "";
+    this.transcriptionKey = "";
     this.lastAutoSpokenKey = "";
   }
 
@@ -565,7 +568,10 @@ private doFlipCard() {
     const next = this.examplesKey === exKey ? "" : exKey;
     this.examplesKey = next;
     this.examplesOffset = 0;
-    if (next) this.synonymsKey = "";
+    if (next) {
+      this.synonymsKey = "";
+      this.transcriptionKey = "";
+    }
     this.render();
   }
 
@@ -573,7 +579,21 @@ private doFlipCard() {
     const synKey = `${card.lineIndex}|${card.question}`;
     const next = this.synonymsKey === synKey ? "" : synKey;
     this.synonymsKey = next;
-    if (next) this.examplesKey = "";
+    if (next) {
+      this.examplesKey = "";
+      this.transcriptionKey = "";
+    }
+    this.render();
+  }
+
+  private toggleTranscriptionForActiveCard(card: SrCard) {
+    const trKey = `${card.lineIndex}|${card.question}`;
+    const next = this.transcriptionKey === trKey ? "" : trKey;
+    this.transcriptionKey = next;
+    if (next) {
+      this.examplesKey = "";
+      this.synonymsKey = "";
+    }
     this.render();
   }
 
@@ -587,14 +607,7 @@ private doFlipCard() {
     const todayISO = getTodayISO();
 
     try {
-      const snap = await saveCardReviewToDisk(
-        this.app,
-        card,
-        dir.dirIndex,
-        gradeOpt
-      );
-      this.undoStack.push(snap);
-      if (this.undoStack.length > 15) this.undoStack.shift();
+      await saveCardReviewToDisk(this.app, card, dir.dirIndex, gradeOpt);
 
       const wasDue = dir.isDue;
       const wasNew = dir.isNew;
@@ -681,119 +694,12 @@ this.currentItem = this.queue.shift() || null;
       this.inlineEditOpen = false;
       this.examplesKey = "";
       this.synonymsKey = "";
+      this.transcriptionKey = "";
 
       this.render();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       new Notice("Ошибка сохранения ответа: " + msg);
-    } finally {
-      this.isGrading = false;
-    }
-  }
-
-  private canUndoInCurrentScope(): boolean {
-    const top = this.undoStack[this.undoStack.length - 1];
-    return Boolean(top && top.scope === this.trainerScope);
-  }
-
-  private async handleUndo() {
-    if (this.isGrading || !this.canUndoInCurrentScope()) return;
-    const snap = this.undoStack.pop();
-    if (!snap) return;
-
-    this.isGrading = true;
-    stopEnglishSpeech();
-
-    try {
-      const fObj = resolveVaultFile(this.app, snap.deckPath);
-      if (fObj) {
-        await enqueueDiskWrite(() =>
-          this.app.vault.modify(fObj, snap.rawContent)
-        );
-      }
-
-      const pool =
-        snap.scope === "english"
-          ? (this.englishData?.cards ?? [])
-          : this.studyAllCards;
-      const restoredCard = pool.find(
-        (c) => c.deckPath === snap.deckPath && c.lineIndex === snap.lineIndex
-      );
-      if (restoredCard && snap.prevDirState) {
-        const curDir = restoredCard.directions[snap.dirIndex];
-        if (curDir) {
-          const restoredReviewedToday =
-            !snap.prevDirState.reviewedToday && curDir.reviewedToday;
-
-          if (snap.scope === "english" && this.englishData) {
-            if (snap.prevDirState.isDue && !curDir.isDue) {
-              this.englishData.dueScheduled++;
-            }
-            if (snap.prevDirState.isNew && !curDir.isNew) {
-              this.englishData.newDirections++;
-            }
-            if (restoredReviewedToday) {
-              this.englishData.reviewedTodayDirections = Math.max(
-                0,
-                this.englishData.reviewedTodayDirections - 1
-              );
-              this.savedTodayCount = Math.max(0, this.savedTodayCount - 1);
-            }
-          } else if (snap.scope === "study") {
-            const deck = this.studyDecks.find((d) => d.path === snap.deckPath);
-            if (snap.prevDirState.isDue && !curDir.isDue) {
-              this.studyTotals.sumDue++;
-              if (deck) deck.dueDirections++;
-            }
-            if (snap.prevDirState.isNew && !curDir.isNew) {
-              this.studyTotals.sumNew++;
-              if (deck) deck.newDirections++;
-            }
-            if (restoredReviewedToday) {
-              this.studyTotals.sumReviewedToday = Math.max(
-                0,
-                this.studyTotals.sumReviewedToday - 1
-              );
-              if (deck) {
-                deck.reviewedTodayDirections = Math.max(
-                  0,
-                  deck.reviewedTodayDirections - 1
-                );
-              }
-            }
-          }
-
-          Object.assign(curDir, snap.prevDirState);
-        }
-      }
-
-      if (this.currentItem) this.queue.unshift(this.currentItem);
-      this.queue = this.queue.filter((x) => x.uid !== snap.uid);
-      this.currentItem = {
-        uid: snap.uid,
-        deckPath: snap.deckPath,
-        lineIndex: snap.lineIndex,
-        dirIndex: snap.dirIndex,
-        isRelearning: false,
-      };
-      this.isFlipped = false;
-      this.inlineEditOpen = false;
-      this.examplesKey = "";
-      this.synonymsKey = "";
-      this.lastAutoSpokenKey = "";
-      this.sessionDone = Math.max(0, this.sessionDone - 1);
-      if (snap.wasCorrect) {
-        this.sessionCorrect = Math.max(0, this.sessionCorrect - 1);
-      } else {
-        this.sessionAgain = Math.max(0, this.sessionAgain - 1);
-      }
-
-      new Notice("Последний ответ отменён.");
-      this.render();
-    } catch (e: unknown) {
-      this.undoStack.push(snap);
-      const msg = e instanceof Error ? e.message : String(e);
-      new Notice("Ошибка отмены: " + msg);
     } finally {
       this.isGrading = false;
     }
@@ -809,19 +715,6 @@ this.currentItem = this.queue.shift() || null;
       activeTag === "SELECT" ||
       (document.activeElement as HTMLElement | null)?.isContentEditable
     ) {
-      return;
-    }
-
-    if (
-      (e.ctrlKey || e.metaKey) &&
-      !e.shiftKey &&
-      !e.altKey &&
-      (e.key === "z" || e.key === "Z" || e.key === "я" || e.key === "Я")
-    ) {
-      if (this.canUndoInCurrentScope()) {
-        e.preventDefault();
-        void this.handleUndo();
-      }
       return;
     }
 
@@ -874,6 +767,12 @@ this.currentItem = this.queue.shift() || null;
     ) {
       e.preventDefault();
       this.toggleSynonymsForActiveCard(card);
+    } else if (
+      this.trainerScope === "english" &&
+      (e.key === "t" || e.key === "T" || e.key === "е" || e.key === "Е")
+    ) {
+      e.preventDefault();
+      this.toggleTranscriptionForActiveCard(card);
     }
   }
 
@@ -1041,6 +940,73 @@ this.currentItem = this.queue.shift() || null;
         const msg = err instanceof Error ? err.message : "нет сети";
         if (panel.isConnected) {
           drawHint(`Не удалось загрузить синонимы (${msg}).`, true);
+        }
+      });
+  }
+
+  private renderTranscriptionBox(parentEl: HTMLElement, word: string) {
+    const panel = parentEl.createDiv("my-sr-examples-panel my-sr-ipa-panel");
+
+    const drawHint = (text: string, withRetry: boolean) => {
+      panel.empty();
+      panel.createDiv({ cls: "my-sr-examples-hint", text });
+      if (withRetry) {
+        const retryBtn = panel.createEl("button", {
+          cls: "my-sr-chip-btn",
+          text: "↻ Повторить",
+          attr: { type: "button" },
+        });
+        retryBtn.onclick = () => this.render();
+      }
+    };
+
+    const drawResult = (res: TranscriptionResult) => {
+      panel.empty();
+      const head = panel.createDiv("my-sr-examples-head");
+      head.createSpan({
+        cls: "my-sr-examples-title",
+        text: "/ə/ Транскрипция",
+      });
+
+      if (!res.items.length) {
+        panel.createDiv({
+          cls: "my-sr-examples-hint",
+          text: "Транскрипция не найдена.",
+        });
+        return;
+      }
+
+      const list = panel.createDiv("my-sr-ipa-list");
+      for (const item of res.items) {
+        const row = list.createDiv("my-sr-ipa-item");
+        if (item.region) {
+          row.createSpan({ cls: "my-sr-ipa-region", text: item.region });
+        }
+        row.createSpan({ cls: "my-sr-ipa-text", text: item.ipa });
+      }
+
+      if (res.sources.length) {
+        panel.createDiv({
+          cls: "my-sr-examples-foot",
+          text: `Источник: ${res.sources.join(", ")}`,
+        });
+      }
+    };
+
+    if (hasCachedTranscription(word)) {
+      drawResult(getCachedTranscription(word) ?? { items: [], sources: [] });
+      return;
+    }
+
+    drawHint("Ищу транскрипцию…", false);
+    fetchTranscription(word)
+      .then((res) => {
+        if (panel.isConnected) drawResult(res);
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : "нет сети";
+        if (panel.isConnected) {
+          drawHint(`Не удалось загрузить транскрипцию (${msg}).`, true);
         }
       });
   }
@@ -1319,14 +1285,6 @@ moreNewBtn.onclick = () => {
         };
       }
 
-      if (this.canUndoInCurrentScope()) {
-        const undoDoneBtn = nextRow.createEl("button", {
-          cls: "my-sr-chip-btn",
-          text: "↩ Отменить последний ответ",
-          attr: { type: "button", title: "Отменить последний ответ (Ctrl+Z)" },
-        });
-        undoDoneBtn.onclick = () => void this.handleUndo();
-      }
       return;
     }
 
@@ -1416,7 +1374,12 @@ moreNewBtn.onclick = () => {
       this.trainerScope === "english" && this.examplesKey === exKey;
     const synonymsOpen =
       this.trainerScope === "english" && this.synonymsKey === exKey;
-    flashcardEl.toggleClass("has-examples", examplesOpen || synonymsOpen);
+    const transcriptionOpen =
+      this.trainerScope === "english" && this.transcriptionKey === exKey;
+    flashcardEl.toggleClass(
+      "has-examples",
+      examplesOpen || synonymsOpen || transcriptionOpen
+    );
 
     if (this.trainerScope === "english") {
       const speakBtn = metaRight.createEl("button", {
@@ -1432,6 +1395,22 @@ moreNewBtn.onclick = () => {
       speakBtn.onclick = (ev) => {
         ev.stopPropagation();
         speakEnglishText(activeCard.question);
+      };
+
+      const trscBtn = metaRight.createEl("button", {
+        cls: "my-sr-card-tool-btn" + (transcriptionOpen ? " is-active" : ""),
+        attr: {
+          type: "button",
+          title: "Показать транскрипцию (клавиша T)",
+          "aria-label": "Транскрипция",
+          "aria-expanded": String(transcriptionOpen),
+        },
+      });
+      trscBtn.createSpan({ cls: "my-sr-ipa-icon", text: "/ə/" });
+      trscBtn.createSpan({ cls: "my-sr-btn-label", text: " Транскрипция" });
+      trscBtn.onclick = (ev) => {
+        ev.stopPropagation();
+        this.toggleTranscriptionForActiveCard(activeCard);
       };
 
       const exBtn = metaRight.createEl("button", {
@@ -1464,22 +1443,6 @@ moreNewBtn.onclick = () => {
       synBtn.onclick = (ev) => {
         ev.stopPropagation();
         this.toggleSynonymsForActiveCard(activeCard);
-      };
-    }
-
-    if (this.canUndoInCurrentScope()) {
-      const undoBtn = metaRight.createEl("button", {
-        cls: "my-sr-card-tool-btn",
-        text: "↩",
-        attr: {
-          type: "button",
-          title: "Отменить последний ответ (Ctrl+Z)",
-          "aria-label": "Отменить последний ответ",
-        },
-      });
-      undoBtn.onclick = (ev) => {
-        ev.stopPropagation();
-        void this.handleUndo();
       };
     }
 
@@ -1948,6 +1911,10 @@ moreNewBtn.onclick = () => {
 
     if (synonymsOpen) {
       this.renderSynonymsBox(flashcardEl, activeCard.question);
+    }
+
+    if (transcriptionOpen) {
+      this.renderTranscriptionBox(flashcardEl, activeCard.question);
     }
 
     if (
