@@ -384,6 +384,185 @@ export async function fetchSynonyms(word: string): Promise<SynonymsResult> {
   return result;
 }
 
+export interface TranslationResult {
+  items: string[];
+  sources: string[];
+}
+
+const translationsCache = new Map<string, TranslationResult>();
+
+export function hasCachedTranslations(word: string): boolean {
+  const key = normalizeExampleWord(word).toLowerCase();
+  return Boolean(key && translationsCache.has(key));
+}
+
+export function getCachedTranslations(
+  word: string
+): TranslationResult | undefined {
+  const key = normalizeExampleWord(word).toLowerCase();
+  return key ? translationsCache.get(key) : undefined;
+}
+
+export async function fetchTranslations(
+  word: string
+): Promise<TranslationResult> {
+  const clean = normalizeExampleWord(word);
+  if (!clean) throw new Error("пустой запрос");
+
+  const cacheKey = clean.toLowerCase();
+  const cached = translationsCache.get(cacheKey);
+  if (cached) return cached;
+
+  const hasCyrillic = /[а-яё]/i;
+  const scored = new Map<string, { text: string; score: number }>();
+  const sources = new Set<string>();
+
+  const pushTranslation = (raw: unknown, score: number, source: string) => {
+    const s = String(raw ?? "")
+      .replace(/\s+/g, " ")
+      .replace(/^[.,;:\-–—\s]+|[.,;:\-–—\s]+$/g, "")
+      .trim();
+    if (s.length < 2 || s.length > 48) return;
+    if (!hasCyrillic.test(s)) return;
+    const k = s.toLowerCase();
+    if (k === cacheKey) return;
+
+    const prev = scored.get(k);
+    if (!prev || score > prev.score) {
+      scored.set(k, { text: prev ? prev.text : s, score });
+    }
+    sources.add(source);
+  };
+
+  const readJson = (r: { json?: unknown; text: string }): unknown =>
+    typeof r.json === "object" && r.json !== null ? r.json : JSON.parse(r.text);
+
+  let answered = false;
+  let lastErr: unknown = null;
+
+  // 1. Google Translate (основной перевод + словарь с оценкой частотности)
+  try {
+    const url =
+      "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ru&dt=t&dt=bd&q=" +
+      encodeURIComponent(cacheKey);
+    const r = await withTimeout(
+      requestUrl({ url, headers: DESKTOP_HEADERS, throw: false }),
+      TRANSLATE_TIMEOUT_MS
+    );
+    if (r.status === 200) {
+      answered = true;
+      const data = readJson(r);
+      if (Array.isArray(data)) {
+        const segs = Array.isArray(data[0]) ? data[0] : [];
+        const mainParts: string[] = [];
+        for (const seg of segs) {
+          if (Array.isArray(seg) && typeof seg[0] === "string") {
+            mainParts.push(seg[0]);
+          }
+        }
+        const mainText = mainParts.join("").trim();
+        if (mainText) pushTranslation(mainText, 1.0, "Google Translate");
+
+        const dict = Array.isArray(data[1]) ? data[1] : [];
+        for (const group of dict) {
+          if (!Array.isArray(group)) continue;
+          const detailed = Array.isArray(group[2]) ? group[2] : [];
+          if (detailed.length > 0) {
+            detailed.forEach((entry, idx) => {
+              if (!Array.isArray(entry)) return;
+              const rawScore = Number(entry[3]);
+              const score =
+                Number.isFinite(rawScore) && rawScore > 0
+                  ? Math.min(0.99, rawScore)
+                  : Math.max(0.001, 0.4 - idx * 0.02);
+              pushTranslation(entry[0], score, "Google Translate");
+            });
+          } else {
+            const simple = Array.isArray(group[1]) ? group[1] : [];
+            simple.forEach((w, idx) => {
+              pushTranslation(
+                w,
+                Math.max(0.001, 0.4 - idx * 0.02),
+                "Google Translate"
+              );
+            });
+          }
+        }
+      }
+    } else {
+      lastErr = new Error("Google Translate: код " + r.status);
+    }
+  } catch (e) {
+    lastErr = e;
+  }
+
+  // 2. MyMemory API (фолбэк, если Google вернул меньше 2 вариантов)
+  if (scored.size < 2) {
+    try {
+      const url =
+        "https://api.mymemory.translated.net/get?q=" +
+        encodeURIComponent(cacheKey) +
+        "&langpair=en|ru";
+      const r = await withTimeout(
+        requestUrl({ url, headers: DESKTOP_HEADERS, throw: false }),
+        TRANSLATE_TIMEOUT_MS
+      );
+      if (r.status === 200) {
+        answered = true;
+        const data = readJson(r) as {
+          responseData?: { translatedText?: unknown };
+          matches?: Array<{
+            translation?: unknown;
+            match?: unknown;
+            "usage-count"?: unknown;
+          }>;
+        } | null;
+
+        if (data?.responseData?.translatedText) {
+          pushTranslation(data.responseData.translatedText, 0.9, "MyMemory");
+        }
+        const matches = Array.isArray(data?.matches) ? data.matches : [];
+        for (const m of matches) {
+          const quality = Number(m?.match);
+          const usage = Number(m?.["usage-count"]);
+          const qScore = Number.isFinite(quality) ? quality : 0.5;
+          const uScore =
+            Number.isFinite(usage) && usage > 0
+              ? Math.min(0.3, Math.log10(usage + 1) * 0.08)
+              : 0;
+          pushTranslation(
+            m?.translation,
+            Math.min(0.85, qScore * 0.6 + uScore),
+            "MyMemory"
+          );
+        }
+      } else {
+        lastErr = new Error("MyMemory: код " + r.status);
+      }
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+
+  if (!answered && scored.size === 0) {
+    throw lastErr instanceof Error
+      ? lastErr
+      : new Error("сервисы перевода недоступны");
+  }
+
+  const items = [...scored.values()]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 12)
+    .map((x) => x.text);
+
+  const result: TranslationResult = {
+    items,
+    sources: [...sources],
+  };
+  translationsCache.set(cacheKey, result);
+  return result;
+}
+
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

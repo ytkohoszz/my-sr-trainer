@@ -1,4 +1,4 @@
-import { App, Component, Modal, Notice } from "obsidian";
+import { App, Component, Modal, Notice, setIcon } from "obsidian";
 import type MySrTrainerPlugin from "./main";
 import {
   BookInfo,
@@ -31,14 +31,18 @@ import {
 import {
   ExampleSentenceItem,
   SynonymsResult,
+  TranslationResult,
   appendHighlightedSentence,
   canMaskWordInSentence,
   fetchExamples,
   fetchSynonyms,
+  fetchTranslations,
   getCachedExamples,
   getCachedSynonyms,
+  getCachedTranslations,
   hasCachedExamples,
   hasCachedSynonyms,
+  hasCachedTranslations,
   speakEnglishText,
   stopEnglishSpeech,
 } from "./examples";
@@ -1509,7 +1513,9 @@ moreNewBtn.onclick = () => {
               : "Вопрос / Термин *",
         },
       });
-      const aInp = editBox.createEl("input", {
+
+      const answerRow = editBox.createDiv("my-sr-edit-answer-row");
+      const aInp = answerRow.createEl("input", {
         cls: "my-sr-input",
         attr: {
           type: "text",
@@ -1520,17 +1526,164 @@ moreNewBtn.onclick = () => {
               : "Ответ / Определение *",
         },
       });
-      const exInp = editBox.createEl("input", {
-        cls: "my-sr-input",
-        attr: {
-          type: "text",
-          value: activeCard.exampleOrHint || "",
-          placeholder:
-            this.trainerScope === "english"
-              ? "Пример предложения (сохраняется в карточке через « — »)"
-              : "Пояснение на обороте (через « // »)",
-        },
-      });
+
+      let exInp: HTMLInputElement | null = null;
+
+      if (this.trainerScope === "english") {
+        const trBtn = answerRow.createEl("button", {
+          cls: "my-sr-chip-btn my-sr-tr-trigger-btn",
+          attr: {
+            type: "button",
+            title: "Подобрать популярные переводы",
+            "aria-label": "Подобрать популярные переводы",
+            "aria-expanded": "false",
+          },
+        });
+        const trIcon = trBtn.createSpan({ cls: "my-sr-tr-btn-icon" });
+        setIcon(trIcon, "languages");
+        trBtn.createSpan({ cls: "my-sr-tr-btn-label", text: "Варианты" });
+
+        const trPanel = editBox.createDiv("my-sr-tr-panel is-hidden");
+        let loadedWord = "";
+        let lastResult: TranslationResult | null = null;
+        let requestSeq = 0;
+
+        const parseParts = (raw: string): string[] =>
+          raw
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+
+        const isSelected = (raw: string, candidate: string): boolean => {
+          const target = candidate.trim().toLowerCase();
+          return parseParts(raw).some((p) => p.toLowerCase() === target);
+        };
+
+        const toggleCandidate = (raw: string, candidate: string): string => {
+          const parts = parseParts(raw);
+          const target = candidate.trim().toLowerCase();
+          const idx = parts.findIndex((p) => p.toLowerCase() === target);
+          if (idx !== -1) parts.splice(idx, 1);
+          else parts.push(candidate.trim());
+          return parts.join(", ");
+        };
+
+        const syncChipStates = () => {
+          const buttons = trPanel.querySelectorAll<HTMLButtonElement>(
+            "button.my-sr-tr-chip"
+          );
+          buttons.forEach((btn) => {
+            const val = btn.dataset.trValue ?? "";
+            btn.toggleClass("is-selected", isSelected(aInp.value, val));
+          });
+        };
+
+        const drawTrHint = (text: string, withRetry: boolean) => {
+          trPanel.empty();
+          trPanel.createDiv({ cls: "my-sr-examples-hint", text });
+          if (withRetry) {
+            const retryBtn = trPanel.createEl("button", {
+              cls: "my-sr-chip-btn",
+              text: "↻ Повторить",
+              attr: { type: "button" },
+            });
+            retryBtn.onclick = () => void loadTranslations(true);
+          }
+        };
+
+        const drawTrResult = (res: TranslationResult) => {
+          lastResult = res;
+          trPanel.empty();
+          if (!res.items.length) {
+            trPanel.createDiv({
+              cls: "my-sr-examples-hint",
+              text: "Варианты перевода не найдены.",
+            });
+            return;
+          }
+
+          const chips = trPanel.createDiv("my-sr-tr-chips");
+          for (const item of res.items) {
+            const chip = chips.createEl("button", {
+              cls:
+                "my-sr-tr-chip" +
+                (isSelected(aInp.value, item) ? " is-selected" : ""),
+              text: item,
+              attr: { type: "button" },
+            });
+            chip.dataset.trValue = item;
+            chip.onclick = () => {
+              aInp.value = toggleCandidate(aInp.value, item);
+              syncChipStates();
+            };
+          }
+
+          if (res.sources.length) {
+            trPanel.createDiv({
+              cls: "my-sr-examples-foot",
+              text: `Источник: ${res.sources.join(", ")}`,
+            });
+          }
+        };
+
+        const loadTranslations = async (forceReload = false) => {
+          const word = qInp.value.trim();
+          if (!word) {
+            drawTrHint("Введите английское слово.", false);
+            return;
+          }
+
+          loadedWord = word.toLowerCase();
+          if (!forceReload && hasCachedTranslations(word)) {
+            drawTrResult(
+              getCachedTranslations(word) ?? { items: [], sources: [] }
+            );
+            return;
+          }
+
+          const seq = ++requestSeq;
+          drawTrHint("Ищу переводы…", false);
+          try {
+            const res = await fetchTranslations(word);
+            if (!trPanel.isConnected || seq !== requestSeq) return;
+            drawTrResult(res);
+          } catch (err: unknown) {
+            if (!trPanel.isConnected || seq !== requestSeq) return;
+            const msg = err instanceof Error ? err.message : "нет сети";
+            drawTrHint(`Не удалось загрузить переводы (${msg}).`, true);
+          }
+        };
+
+        aInp.oninput = () => {
+          if (lastResult && !trPanel.hasClass("is-hidden")) {
+            syncChipStates();
+          }
+        };
+
+        trBtn.onclick = () => {
+          const currentWord = qInp.value.trim().toLowerCase();
+          const isOpen = !trPanel.hasClass("is-hidden");
+          if (isOpen && loadedWord === currentWord) {
+            trPanel.addClass("is-hidden");
+            trBtn.removeClass("is-active");
+            trBtn.setAttr("aria-expanded", "false");
+            return;
+          }
+          trPanel.removeClass("is-hidden");
+          trBtn.addClass("is-active");
+          trBtn.setAttr("aria-expanded", "true");
+          void loadTranslations();
+        };
+      } else {
+        exInp = editBox.createEl("input", {
+          cls: "my-sr-input",
+          attr: {
+            type: "text",
+            value: activeCard.exampleOrHint || "",
+            placeholder: "Пояснение на обороте (через « // »)",
+          },
+        });
+      }
 
       const foot = editBox.createDiv("my-sr-edit-foot");
       let bookSel: HTMLSelectElement | null = null;
@@ -1570,7 +1723,7 @@ moreNewBtn.onclick = () => {
       saveBtn.onclick = async () => {
         const nq = qInp.value.trim();
         const na = aInp.value.trim();
-        const nex = exInp.value.trim();
+        const nex = exInp ? exInp.value.trim() : activeCard.exampleOrHint;
         if (!nq || !na) {
           new Notice("Вопрос и ответ не могут быть пустыми.");
           return;
