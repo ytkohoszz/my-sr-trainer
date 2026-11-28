@@ -119,6 +119,60 @@ class SrTrainerSettingTab extends PluginSettingTab {
             this.plugin.requestSaveSettings();
           })
       );
+
+    new Setting(containerEl)
+      .setName("Перемешивать очередь карточек")
+      .setDesc("Случайный порядок внутри повторений и новых слов")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.shuffleQueue)
+          .onChange((val) => {
+            this.plugin.settings.shuffleQueue = val;
+            this.plugin.requestSaveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Разносить стороны карточки на разные дни")
+      .setDesc(
+        "Если пройдена одна сторона двусторонней карточки (EN → RU или RU → EN), вторая откладывается на следующий день"
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.burySiblings)
+          .onChange((val) => {
+            this.plugin.settings.burySiblings = val;
+            this.plugin.requestSaveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Контекст-подсказка на стороне RU → EN")
+      .setDesc(
+        "Показывать сохранённый пример предложения до переворота со скрытым английским словом"
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.showMaskedExampleOnReverse)
+          .onChange((val) => {
+            this.plugin.settings.showMaskedExampleOnReverse = val;
+            this.plugin.requestSaveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Автоозвучка английских слов")
+      .setDesc(
+        "Автоматически озвучивать слово при показе английской стороны карточки"
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.autoSpeakEnglish)
+          .onChange((val) => {
+            this.plugin.settings.autoSpeakEnglish = val;
+            this.plugin.requestSaveSettings();
+          })
+      );
   }
 }
 

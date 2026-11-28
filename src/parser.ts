@@ -859,10 +859,23 @@ function parseStudyDeckFileContent(
   };
 }
 
+function computeFuzzDelta(interval: number, seed?: string): number {
+  if (interval < 5 || !seed) return 0;
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  const norm = ((h >>> 0) % 1000) / 1000;
+  const range = Math.max(1, Math.round(interval * 0.07));
+  return Math.round((norm * 2 - 1) * range);
+}
+
 export function computeGradeOptions(
   dirState: CardDirectionState,
   todayISO: string,
-  isRelearning = false
+  isRelearning = false,
+  fuzzSeed?: string
 ): GradeOptionsSet {
   const isNew =
     Boolean(dirState.isNew) || !dirState.interval || dirState.interval <= 0;
@@ -882,13 +895,19 @@ export function computeGradeOptions(
   const againInterval = 1;
   const againEase = Math.max(130, baseEase - 20);
 
-  const hardInterval =
+  let hardInterval =
     isNew || isRelearning
       ? 1
       : Math.max(
           baseInterval === 1 ? 1 : baseInterval + 1,
           Math.round(baseInterval * 1.2)
         );
+  if (!isNew && !isRelearning && hardInterval >= 5) {
+    hardInterval = Math.max(
+      baseInterval + 1,
+      hardInterval + computeFuzzDelta(hardInterval, fuzzSeed ? `${fuzzSeed}:h` : undefined)
+    );
+  }
   const hardEase = Math.max(130, baseEase - 15);
 
   let goodInterval: number;
@@ -896,20 +915,27 @@ export function computeGradeOptions(
   else if (isNew) goodInterval = 2;
   else if (baseInterval === 1) goodInterval = 3;
   else {
-    goodInterval = Math.max(
-      hardInterval + 1,
-      Math.round(effectiveInterval * (baseEase / 100))
-    );
+    const rawGood = Math.round(effectiveInterval * (baseEase / 100));
+    const fuzzedGood =
+      rawGood >= 5
+        ? rawGood + computeFuzzDelta(rawGood, fuzzSeed ? `${fuzzSeed}:g` : undefined)
+        : rawGood;
+    goodInterval = Math.max(hardInterval + 1, fuzzedGood);
   }
-  const goodEase = baseEase;
+  const goodEase =
+    !isNew && !isRelearning && baseEase < 200
+      ? Math.min(200, baseEase + 5)
+      : baseEase;
 
   let easyInterval: number;
   if (isNew || isRelearning) easyInterval = 4;
   else {
-    easyInterval = Math.max(
-      goodInterval + 1,
-      Math.round(effectiveInterval * (baseEase / 100) * 1.35)
-    );
+    const rawEasy = Math.round(effectiveInterval * (baseEase / 100) * 1.35);
+    const fuzzedEasy =
+      rawEasy >= 5
+        ? rawEasy + computeFuzzDelta(rawEasy, fuzzSeed ? `${fuzzSeed}:e` : undefined)
+        : rawEasy;
+    easyInterval = Math.max(goodInterval + 1, fuzzedEasy);
   }
   const easyEase = baseEase + 15;
 

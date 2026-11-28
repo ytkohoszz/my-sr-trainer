@@ -62,6 +62,15 @@ export function speakEnglishText(text: string) {
   }
 }
 
+export function stopEnglishSpeech() {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  try {
+    window.speechSynthesis.cancel();
+  } catch {
+    // Игнорируем ошибку синтезатора речи
+  }
+}
+
 export function normalizeExampleWord(word: string): string {
   return String(word ?? "")
     .trim()
@@ -375,24 +384,53 @@ export async function fetchSynonyms(word: string): Promise<SynonymsResult> {
   return result;
 }
 
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function wordPartToPattern(raw: string): string {
+  if (/^[a-z]{4,}$/i.test(raw)) {
+    if (/e$/i.test(raw)) {
+      return escapeRegExp(raw.slice(0, -1)) + "(?:e\\w*|ing\\b|ed\\b)";
+    }
+    if (/[^aeiou]y$/i.test(raw)) {
+      return escapeRegExp(raw.slice(0, -1)) + "(?:y\\w*|ie(?:s|d)\\b)";
+    }
+  }
+  return escapeRegExp(raw) + "\\w*";
+}
+
+function buildHighlightRegex(word: string): RegExp | null {
+  let base = normalizeExampleWord(word);
+  const withoutTo = base.replace(/^to\s+/i, "").trim();
+  if (withoutTo.length >= 3) base = withoutTo;
+
+  const parts = base
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(wordPartToPattern);
+
+  if (!parts.length) return null;
+  return new RegExp("\\b(" + parts.join("\\s+") + ")", "gi");
+}
+
+export function canMaskWordInSentence(sentence: string, word: string): boolean {
+  const re = buildHighlightRegex(word);
+  return Boolean(re && re.test(sentence));
+}
+
 export function appendHighlightedSentence(
   parent: HTMLElement,
   sentence: string,
   word: string,
   mask: boolean
 ) {
-  const base = normalizeExampleWord(word);
-  const parts = base
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-
-  if (!parts.length) {
+  const re = buildHighlightRegex(word);
+  if (!re) {
     parent.createSpan({ text: sentence });
     return;
   }
 
-  const re = new RegExp("\\b(" + parts.join("\\s+") + ")\\w*", "gi");
   let last = 0;
   let m: RegExpExecArray | null;
   while ((m = re.exec(sentence)) !== null) {
@@ -414,7 +452,7 @@ export function appendHighlightedSentence(
     }
     last = m.index + matchedWord.length;
   }
-if (last < sentence.length) {
+  if (last < sentence.length) {
     parent.createSpan({ text: sentence.slice(last) });
   }
 }

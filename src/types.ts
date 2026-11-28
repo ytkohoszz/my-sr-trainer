@@ -31,8 +31,12 @@ export interface SrTrainerSettings {
   studyAttachmentsFolder: string;
   knowledgeFolder: string;
   diaryFolder: string;
-englishNewSessionLimit: number;
+  englishNewSessionLimit: number;
   studyNewSessionLimit: number;
+  shuffleQueue: boolean;
+  burySiblings: boolean;
+  autoSpeakEnglish: boolean;
+  showMaskedExampleOnReverse: boolean;
 }
 
 export const DEFAULT_SETTINGS: SrTrainerSettings = {
@@ -44,6 +48,10 @@ export const DEFAULT_SETTINGS: SrTrainerSettings = {
   diaryFolder: "Ежедневник",
   englishNewSessionLimit: 25,
   studyNewSessionLimit: 30,
+  shuffleQueue: true,
+  burySiblings: true,
+  autoSpeakEnglish: false,
+  showMaskedExampleOnReverse: true,
 };
 
 export interface BookInfo {

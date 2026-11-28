@@ -32,6 +32,7 @@ import {
   ExampleSentenceItem,
   SynonymsResult,
   appendHighlightedSentence,
+  canMaskWordInSentence,
   fetchExamples,
   fetchSynonyms,
   getCachedExamples,
@@ -39,6 +40,7 @@ import {
   hasCachedExamples,
   hasCachedSynonyms,
   speakEnglishText,
+  stopEnglishSpeech,
 } from "./examples";
 import { classifyCardSide } from "./media";
 import { renderStudySide } from "./render-side";
@@ -90,6 +92,7 @@ queue: TrainerQueueItem[] = [];
   private touchStartedInScrollable = false;
   private isGrading = false;
   private sideRenderComponent: Component | null = null;
+  private lastAutoSpokenKey = "";
 
   constructor(
     app: App,
@@ -208,6 +211,8 @@ queue: TrainerQueueItem[] = [];
       this.modalEl.removeEventListener("touchend", this.touchEndHandler);
       this.touchEndHandler = null;
     }
+    stopEnglishSpeech();
+    this.lastAutoSpokenKey = "";
     this.sideRenderComponent?.unload();
     this.sideRenderComponent = null;
     this.contentEl.empty();
@@ -257,10 +262,110 @@ this.rebuildQueue();
     return this.studyAllCards;
   }
 
+  private shouldBurySiblings(): boolean {
+    if (!this.plugin.settings.burySiblings) return false;
+    if (this.trainerScope === "study" && this.studyMode === "CRAM_ALL") {
+      return false;
+    }
+    return true;
+  }
+
+  private shuffleInPlace<T>(arr: T[]): void {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const a = arr[i];
+      const b = arr[j];
+      if (a !== undefined && b !== undefined) {
+        arr[i] = b;
+        arr[j] = a;
+      }
+    }
+  }
+
+  private enqueueCardDirections(
+    card: SrCard,
+    mode: EnglishTrainerMode | StudyTrainerMode,
+    burySiblings: boolean,
+    shuffle: boolean,
+    dueItems: TrainerQueueItem[],
+    newItems: TrainerQueueItem[],
+    extraItems: TrainerQueueItem[]
+  ) {
+    const cardDue: TrainerQueueItem[] = [];
+    const cardNew: TrainerQueueItem[] = [];
+    const cardExtra: TrainerQueueItem[] = [];
+
+    for (const dir of card.directions) {
+      if (this.directionFilter === "FORWARD" && dir.dirIndex !== 0) continue;
+      if (this.directionFilter === "REVERSE" && dir.dirIndex !== 1) continue;
+
+      if (
+        burySiblings &&
+        card.directions.some(
+          (other) => other.dirIndex !== dir.dirIndex && other.reviewedToday
+        )
+      ) {
+        continue;
+      }
+
+      const item: TrainerQueueItem = {
+        uid: `${card.deckPath}:${card.lineIndex}:${dir.dirIndex}`,
+        deckPath: card.deckPath,
+        lineIndex: card.lineIndex,
+        dirIndex: dir.dirIndex,
+        isRelearning: false,
+      };
+
+      if (mode === "DUE_ONLY") {
+        if (dir.isDue) cardDue.push(item);
+      } else if (mode === "NEW_ONLY") {
+        if (dir.isNew) cardNew.push(item);
+      } else if (mode === "HARD" || mode === "BOOK" || mode === "CRAM_ALL") {
+        if (dir.isDue) cardDue.push(item);
+        else if (dir.isNew) cardNew.push(item);
+        else cardExtra.push(item);
+      } else {
+        if (dir.isDue) cardDue.push(item);
+        else if (dir.isNew) cardNew.push(item);
+      }
+    }
+
+    if (!burySiblings) {
+      dueItems.push(...cardDue);
+      newItems.push(...cardNew);
+      extraItems.push(...cardExtra);
+      return;
+    }
+
+    const pickOne = (arr: TrainerQueueItem[]): TrainerQueueItem | null => {
+      if (!arr.length) return null;
+      if (arr.length === 1 || !shuffle) return arr[0] ?? null;
+      const idx = Math.floor(Math.random() * arr.length);
+      return arr[idx] ?? arr[0] ?? null;
+    };
+
+    const chosenDue = pickOne(cardDue);
+    if (chosenDue) {
+      dueItems.push(chosenDue);
+      return;
+    }
+    const chosenNew = pickOne(cardNew);
+    if (chosenNew) {
+      newItems.push(chosenNew);
+      return;
+    }
+    const chosenExtra = pickOne(cardExtra);
+    if (chosenExtra) {
+      extraItems.push(chosenExtra);
+    }
+  }
+
   rebuildQueue() {
     const dueItems: TrainerQueueItem[] = [];
     const newItems: TrainerQueueItem[] = [];
     const extraItems: TrainerQueueItem[] = [];
+    const bury = this.shouldBurySiblings();
+    const shuffle = this.plugin.settings.shuffleQueue;
 
     if (this.trainerScope === "english") {
       const cards = this.englishData?.cards ?? [];
@@ -281,43 +386,32 @@ this.rebuildQueue();
           if (!isHard) continue;
         }
 
-        for (const dir of card.directions) {
-          if (this.directionFilter === "FORWARD" && dir.dirIndex !== 0) continue;
-          if (this.directionFilter === "REVERSE" && dir.dirIndex !== 1) continue;
-
-          const item: TrainerQueueItem = {
-            uid: `${card.deckPath}:${card.lineIndex}:${dir.dirIndex}`,
-            deckPath: card.deckPath,
-            lineIndex: card.lineIndex,
-            dirIndex: dir.dirIndex,
-            isRelearning: false,
-          };
-
-          if (this.englishMode === "DUE_ONLY") {
-            if (dir.isDue) dueItems.push(item);
-          } else if (this.englishMode === "NEW_ONLY") {
-            if (dir.isNew) newItems.push(item);
-          } else if (
-            this.englishMode === "HARD" ||
-            this.englishMode === "BOOK"
-          ) {
-            if (dir.isDue) dueItems.push(item);
-            else if (dir.isNew) newItems.push(item);
-            else extraItems.push(item);
-          } else {
-            if (dir.isDue) dueItems.push(item);
-            else if (dir.isNew) newItems.push(item);
-          }
-        }
+        this.enqueueCardDirections(
+          card,
+          this.englishMode,
+          bury,
+          shuffle,
+          dueItems,
+          newItems,
+          extraItems
+        );
       }
 
       const newLimit = this.plugin.settings.englishNewSessionLimit || 25;
-      if (this.englishMode === "DUE_AND_NEW") {
-        this.queue = [...dueItems, ...newItems.slice(0, newLimit)];
-      } else if (this.englishMode === "HARD" || this.englishMode === "BOOK") {
-        this.queue = [...dueItems, ...newItems, ...extraItems];
+      const pickedNew =
+        this.englishMode === "DUE_AND_NEW"
+          ? newItems.slice(0, newLimit)
+          : newItems;
+      if (shuffle) {
+        this.shuffleInPlace(dueItems);
+        this.shuffleInPlace(pickedNew);
+        this.shuffleInPlace(extraItems);
+      }
+
+      if (this.englishMode === "HARD" || this.englishMode === "BOOK") {
+        this.queue = [...dueItems, ...pickedNew, ...extraItems];
       } else {
-        this.queue = [...dueItems, ...newItems];
+        this.queue = [...dueItems, ...pickedNew];
       }
     } else {
       for (const card of this.studyAllCards) {
@@ -336,42 +430,29 @@ this.rebuildQueue();
           if (!isHard) continue;
         }
 
-        for (const dir of card.directions) {
-          if (this.directionFilter === "FORWARD" && dir.dirIndex !== 0) continue;
-          if (this.directionFilter === "REVERSE" && dir.dirIndex !== 1) continue;
-
-          const item: TrainerQueueItem = {
-            uid: `${card.deckPath}:${card.lineIndex}:${dir.dirIndex}`,
-            deckPath: card.deckPath,
-            lineIndex: card.lineIndex,
-            dirIndex: dir.dirIndex,
-            isRelearning: false,
-          };
-
-          if (this.studyMode === "DUE_ONLY") {
-            if (dir.isDue) dueItems.push(item);
-          } else if (this.studyMode === "NEW_ONLY") {
-            if (dir.isNew) newItems.push(item);
-          } else if (
-            this.studyMode === "CRAM_ALL" ||
-            this.studyMode === "HARD"
-          ) {
-            if (dir.isDue) dueItems.push(item);
-            else if (dir.isNew) newItems.push(item);
-            else extraItems.push(item);
-          } else {
-            if (dir.isDue) dueItems.push(item);
-            else if (dir.isNew) newItems.push(item);
-          }
-        }
+        this.enqueueCardDirections(
+          card,
+          this.studyMode,
+          bury,
+          shuffle,
+          dueItems,
+          newItems,
+          extraItems
+        );
       }
 
       const newLimit = this.plugin.settings.studyNewSessionLimit || 30;
-      if (this.studyMode === "DUE_AND_NEW") {
-        this.queue = [...dueItems, ...newItems.slice(0, newLimit)];
-      } else {
-        this.queue = [...dueItems, ...newItems, ...extraItems];
+      const pickedNew =
+        this.studyMode === "DUE_AND_NEW"
+          ? newItems.slice(0, newLimit)
+          : newItems;
+      if (shuffle) {
+        this.shuffleInPlace(dueItems);
+        this.shuffleInPlace(pickedNew);
+        this.shuffleInPlace(extraItems);
       }
+
+      this.queue = [...dueItems, ...pickedNew, ...extraItems];
     }
 
 this.currentItem = this.queue.shift() || null;
@@ -380,6 +461,7 @@ this.currentItem = this.queue.shift() || null;
     this.examplesKey = "";
     this.examplesOffset = 0;
     this.synonymsKey = "";
+    this.lastAutoSpokenKey = "";
   }
 
   private getCurrentCardAndDirection(): {
@@ -562,6 +644,17 @@ private doFlipCard() {
         }
       }
 
+      if (this.shouldBurySiblings()) {
+        this.queue = this.queue.filter(
+          (q) =>
+            !(
+              q.deckPath === card.deckPath &&
+              q.lineIndex === card.lineIndex &&
+              q.dirIndex !== dir.dirIndex
+            )
+        );
+      }
+
       this.sessionDone++;
       if (gradeOpt.requeue && this.currentItem) {
         this.sessionAgain++;
@@ -593,9 +686,18 @@ this.currentItem = this.queue.shift() || null;
     }
   }
 
+  private canUndoInCurrentScope(): boolean {
+    const top = this.undoStack[this.undoStack.length - 1];
+    return Boolean(top && top.scope === this.trainerScope);
+  }
+
   private async handleUndo() {
+    if (this.isGrading || !this.canUndoInCurrentScope()) return;
     const snap = this.undoStack.pop();
     if (!snap) return;
+
+    this.isGrading = true;
+    stopEnglishSpeech();
 
     try {
       const fObj = resolveVaultFile(this.app, snap.deckPath);
@@ -605,13 +707,19 @@ this.currentItem = this.queue.shift() || null;
         );
       }
 
-      const pool = this.getActiveCardsPool();
+      const pool =
+        snap.scope === "english"
+          ? (this.englishData?.cards ?? [])
+          : this.studyAllCards;
       const restoredCard = pool.find(
         (c) => c.deckPath === snap.deckPath && c.lineIndex === snap.lineIndex
       );
       if (restoredCard && snap.prevDirState) {
         const curDir = restoredCard.directions[snap.dirIndex];
         if (curDir) {
+          const restoredReviewedToday =
+            !snap.prevDirState.reviewedToday && curDir.reviewedToday;
+
           if (snap.scope === "english" && this.englishData) {
             if (snap.prevDirState.isDue && !curDir.isDue) {
               this.englishData.dueScheduled++;
@@ -619,7 +727,37 @@ this.currentItem = this.queue.shift() || null;
             if (snap.prevDirState.isNew && !curDir.isNew) {
               this.englishData.newDirections++;
             }
+            if (restoredReviewedToday) {
+              this.englishData.reviewedTodayDirections = Math.max(
+                0,
+                this.englishData.reviewedTodayDirections - 1
+              );
+              this.savedTodayCount = Math.max(0, this.savedTodayCount - 1);
+            }
+          } else if (snap.scope === "study") {
+            const deck = this.studyDecks.find((d) => d.path === snap.deckPath);
+            if (snap.prevDirState.isDue && !curDir.isDue) {
+              this.studyTotals.sumDue++;
+              if (deck) deck.dueDirections++;
+            }
+            if (snap.prevDirState.isNew && !curDir.isNew) {
+              this.studyTotals.sumNew++;
+              if (deck) deck.newDirections++;
+            }
+            if (restoredReviewedToday) {
+              this.studyTotals.sumReviewedToday = Math.max(
+                0,
+                this.studyTotals.sumReviewedToday - 1
+              );
+              if (deck) {
+                deck.reviewedTodayDirections = Math.max(
+                  0,
+                  deck.reviewedTodayDirections - 1
+                );
+              }
+            }
           }
+
           Object.assign(curDir, snap.prevDirState);
         }
       }
@@ -634,8 +772,10 @@ this.currentItem = this.queue.shift() || null;
         isRelearning: false,
       };
       this.isFlipped = false;
+      this.inlineEditOpen = false;
       this.examplesKey = "";
       this.synonymsKey = "";
+      this.lastAutoSpokenKey = "";
       this.sessionDone = Math.max(0, this.sessionDone - 1);
       if (snap.wasCorrect) {
         this.sessionCorrect = Math.max(0, this.sessionCorrect - 1);
@@ -646,8 +786,11 @@ this.currentItem = this.queue.shift() || null;
       new Notice("Последний ответ отменён.");
       this.render();
     } catch (e: unknown) {
+      this.undoStack.push(snap);
       const msg = e instanceof Error ? e.message : String(e);
       new Notice("Ошибка отмены: " + msg);
+    } finally {
+      this.isGrading = false;
     }
   }
 
@@ -664,6 +807,19 @@ this.currentItem = this.queue.shift() || null;
       return;
     }
 
+    if (
+      (e.ctrlKey || e.metaKey) &&
+      !e.shiftKey &&
+      !e.altKey &&
+      (e.key === "z" || e.key === "Z" || e.key === "я" || e.key === "Я")
+    ) {
+      if (this.canUndoInCurrentScope()) {
+        e.preventDefault();
+        void this.handleUndo();
+      }
+      return;
+    }
+
     const { card, dir } = this.getCurrentCardAndDirection();
     if (!card || !dir) return;
 
@@ -671,7 +827,8 @@ this.currentItem = this.queue.shift() || null;
     const gradeOptions = computeGradeOptions(
       dir,
       todayISO,
-      Boolean(this.currentItem?.isRelearning)
+      Boolean(this.currentItem?.isRelearning),
+      `${card.uidKey}:${dir.dirIndex}:${todayISO}`
     );
 
     if (e.code === "Space" && !this.isFlipped) {
@@ -1156,6 +1313,15 @@ moreNewBtn.onclick = () => {
           this.render();
         };
       }
+
+      if (this.canUndoInCurrentScope()) {
+        const undoDoneBtn = nextRow.createEl("button", {
+          cls: "my-sr-chip-btn",
+          text: "↩ Отменить последний ответ",
+          attr: { type: "button", title: "Отменить последний ответ (Ctrl+Z)" },
+        });
+        undoDoneBtn.onclick = () => void this.handleUndo();
+      }
       return;
     }
 
@@ -1213,6 +1379,16 @@ moreNewBtn.onclick = () => {
         text: `📚 ${activeCard.deckTitle}`,
       });
       metaLeft.createSpan({ cls: "my-sr-pill", text: stageLabel });
+    }
+
+    if (!activeDir.isNew && activeDir.ease <= 160) {
+      metaLeft.createSpan({
+        cls: "my-sr-pill my-sr-pill-leech",
+        text: "Сложная",
+        attr: {
+          title: `Часто забывается (лёгкость ${activeDir.ease}%) — стоит уточнить перевод или добавить пример`,
+        },
+      });
     }
 
     if (this.sessionDone > 0) {
@@ -1283,6 +1459,22 @@ moreNewBtn.onclick = () => {
       synBtn.onclick = (ev) => {
         ev.stopPropagation();
         this.toggleSynonymsForActiveCard(activeCard);
+      };
+    }
+
+    if (this.canUndoInCurrentScope()) {
+      const undoBtn = metaRight.createEl("button", {
+        cls: "my-sr-card-tool-btn",
+        text: "↩",
+        attr: {
+          type: "button",
+          title: "Отменить последний ответ (Ctrl+Z)",
+          "aria-label": "Отменить последний ответ",
+        },
+      });
+      undoBtn.onclick = (ev) => {
+        ev.stopPropagation();
+        void this.handleUndo();
       };
     }
 
@@ -1460,15 +1652,28 @@ moreNewBtn.onclick = () => {
       centerBox.createDiv({ cls: "my-sr-prompt-text", text: promptText });
     }
 
-    if (
-      this.trainerScope === "english" &&
-      isForward &&
-      activeCard.exampleOrHint
-    ) {
-      centerBox.createDiv({
-        cls: "my-sr-example-text",
-        text: activeCard.exampleOrHint,
-      });
+    if (this.trainerScope === "english" && activeCard.exampleOrHint) {
+      if (isForward) {
+        const exEl = centerBox.createDiv("my-sr-example-text");
+        appendHighlightedSentence(
+          exEl,
+          activeCard.exampleOrHint,
+          activeCard.question,
+          false
+        );
+      } else if (
+        !this.isFlipped &&
+        this.plugin.settings.showMaskedExampleOnReverse &&
+        canMaskWordInSentence(activeCard.exampleOrHint, activeCard.question)
+      ) {
+        const exEl = centerBox.createDiv("my-sr-example-text");
+        appendHighlightedSentence(
+          exEl,
+          activeCard.exampleOrHint,
+          activeCard.question,
+          true
+        );
+      }
     }
 
     if (this.isFlipped) {
@@ -1507,10 +1712,13 @@ moreNewBtn.onclick = () => {
         activeCard.exampleOrHint
       ) {
         const exRow = centerBox.createDiv("my-sr-example-flip-row");
-        exRow.createSpan({
-          cls: "my-sr-example-text",
-          text: activeCard.exampleOrHint,
-        });
+        const exSpan = exRow.createSpan({ cls: "my-sr-example-text" });
+        appendHighlightedSentence(
+          exSpan,
+          activeCard.exampleOrHint,
+          activeCard.question,
+          false
+        );
       }
 
       if (this.trainerScope === "study" && activeCard.exampleOrHint) {
@@ -1533,12 +1741,25 @@ moreNewBtn.onclick = () => {
       this.renderSynonymsBox(flashcardEl, activeCard.question);
     }
 
+    if (
+      this.trainerScope === "english" &&
+      this.plugin.settings.autoSpeakEnglish &&
+      (isForward || this.isFlipped)
+    ) {
+      const speakKey = `${this.currentItem?.uid ?? activeCard.uidKey}:${this.sessionDone}:${isForward ? "front" : "back"}`;
+      if (this.lastAutoSpokenKey !== speakKey) {
+        this.lastAutoSpokenKey = speakKey;
+        speakEnglishText(activeCard.question);
+      }
+    }
+
     // 6. Нижний блок кнопок ответа
     const bottomControls = contentEl.createDiv("my-sr-bottom-controls");
     const gradeOptions = computeGradeOptions(
       activeDir,
       todayISO,
-      isRelearning
+      isRelearning,
+      `${activeCard.uidKey}:${activeDir.dirIndex}:${todayISO}`
     );
 
     if (!this.isFlipped) {
