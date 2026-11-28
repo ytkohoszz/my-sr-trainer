@@ -602,11 +602,25 @@
   min-width: 0;
 }
 
-.my-sr-modal button.my-sr-tr-trigger-btn {
+.my-sr-modal button.my-sr-tr-trigger-btn,
+.my-sr-modal button.my-sr-norm-btn {
   min-height: 36px;
   height: 36px;
-  padding-inline: 11px;
   border-radius: var(--input-radius, var(--radius-s, 8px));
+}
+
+.my-sr-modal button.my-sr-tr-trigger-btn {
+  padding-inline: 11px;
+}
+
+.my-sr-modal button.my-sr-norm-btn {
+  width: 36px;
+  min-width: 36px;
+  padding: 0;
+}
+
+.my-sr-modal button.my-sr-norm-btn.is-loading .my-sr-tr-btn-icon {
+  opacity: 0.5;
 }
 
 .my-sr-modal .my-sr-tr-btn-icon {
@@ -667,9 +681,17 @@
 }
 
 body.is-mobile .my-sr-modal button.my-sr-tr-trigger-btn,
-body.is-tablet .my-sr-modal button.my-sr-tr-trigger-btn {
+body.is-tablet .my-sr-modal button.my-sr-tr-trigger-btn,
+body.is-mobile .my-sr-modal button.my-sr-norm-btn,
+body.is-tablet .my-sr-modal button.my-sr-norm-btn {
   min-height: 40px;
   height: 40px;
+}
+
+body.is-mobile .my-sr-modal button.my-sr-norm-btn,
+body.is-tablet .my-sr-modal button.my-sr-norm-btn {
+  width: 40px;
+  min-width: 40px;
 }
 
 body.is-mobile .my-sr-modal button.my-sr-tr-chip,

@@ -43,6 +43,7 @@ import {
   hasCachedExamples,
   hasCachedSynonyms,
   hasCachedTranslations,
+  lemmatizeEnglish,
   speakEnglishText,
   stopEnglishSpeech,
 } from "./examples";
@@ -1502,7 +1503,11 @@ moreNewBtn.onclick = () => {
       const editBox = flashcardEl.createDiv("my-sr-edit-box");
       editBox.onclick = (ev) => ev.stopPropagation();
 
-      const qInp = editBox.createEl("input", {
+      const qRow =
+        this.trainerScope === "english"
+          ? editBox.createDiv("my-sr-edit-answer-row")
+          : editBox;
+      const qInp = qRow.createEl("input", {
         cls: "my-sr-input",
         attr: {
           type: "text",
@@ -1513,6 +1518,19 @@ moreNewBtn.onclick = () => {
               : "Вопрос / Термин *",
         },
       });
+      let normBtn: HTMLButtonElement | null = null;
+      if (this.trainerScope === "english") {
+        normBtn = qRow.createEl("button", {
+          cls: "my-sr-chip-btn my-sr-norm-btn",
+          attr: {
+            type: "button",
+            title: "Привести к обычной форме",
+            "aria-label": "Привести к обычной форме",
+          },
+        });
+        const normIcon = normBtn.createSpan({ cls: "my-sr-tr-btn-icon" });
+        setIcon(normIcon, "sparkles");
+      }
 
       const answerRow = editBox.createDiv("my-sr-edit-answer-row");
       const aInp = answerRow.createEl("input", {
@@ -1674,6 +1692,44 @@ moreNewBtn.onclick = () => {
           trBtn.setAttr("aria-expanded", "true");
           void loadTranslations();
         };
+
+        if (normBtn) {
+          const btn = normBtn;
+          btn.onclick = async () => {
+            const rawWord = qInp.value.trim();
+            if (!rawWord) {
+              new Notice("Введите английское слово.");
+              return;
+            }
+            btn.disabled = true;
+            btn.addClass("is-loading");
+            try {
+              const res = await lemmatizeEnglish(rawWord);
+              if (!qInp.isConnected) return;
+              if (!res.changed) {
+                new Notice(
+                  res.isPhrase
+                    ? "Выражение уже в обычной форме."
+                    : "Слово уже в обычной форме."
+                );
+                return;
+              }
+              qInp.value = res.normalized;
+              new Notice(`${res.original} → ${res.normalized}`);
+              if (!trPanel.hasClass("is-hidden")) {
+                void loadTranslations();
+              }
+            } catch (err: unknown) {
+              const msg = err instanceof Error ? err.message : "нет сети";
+              new Notice(`Не удалось привести к обычной форме (${msg}).`);
+            } finally {
+              if (btn.isConnected) {
+                btn.disabled = false;
+                btn.removeClass("is-loading");
+              }
+            }
+          };
+        }
       } else {
         exInp = editBox.createEl("input", {
           cls: "my-sr-input",
